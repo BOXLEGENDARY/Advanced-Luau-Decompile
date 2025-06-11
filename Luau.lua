@@ -598,6 +598,20 @@ function Luau:INSN_sD(insn) -- (-32768..32767)
 	return sD
 end
 
+-- Instruction decoding helpers (grouped cleanly)
+Luau.Decode = {}
+
+function Luau.Decode.OP(insn) return bit32.band(insn, 0xFF) end
+function Luau.Decode.A(insn) return bit32.band(bit32.rshift(insn, 8), 0xFF) end
+function Luau.Decode.B(insn) return bit32.band(bit32.rshift(insn, 16), 0xFF) end
+function Luau.Decode.C(insn) return bit32.band(bit32.rshift(insn, 24), 0xFF) end
+function Luau.Decode.D(insn) return bit32.rshift(insn, 16) end
+function Luau.Decode.sD(insn)
+	local D = Luau.Decode.D(insn)
+	return (D > 0x7FFF and D <= 0xFFFF) and (-(0xFFFF - D) - 1) or D
+end
+function Luau.Decode.E(insn) return bit32.rshift(insn, 8) end
+
 -- E encoding: one signed 24-bit value
 function Luau:INSN_E(insn)
 	return bit32.rshift(insn, 8)
@@ -860,6 +874,70 @@ local function prepare(t)
 		local case = bit32.band((i - 1)*CASE_MULTIPLIER, 0xFF)
 		self[case] = v
 	end)
+
+	return t
+end
+
+function Luau:BuildOpCodeMaps()
+	self.OpCodeNameToCase = {}
+	self.OpCodeCaseToName = {}
+	for case, def in pairs(self.OpCode) do
+		self.OpCodeNameToCase[def.name] = case
+		self.OpCodeCaseToName[case] = def.name
+	end
+end
+
+function Luau:GetOpName(insn)
+	local opcode = self:INSN_OP(insn)
+	return self.OpCode[opcode] and self.OpCode[opcode].name or "UNKNOWN"
+end
+
+function Luau:IsValidOpcode(op)
+	return self.OpCode[op] ~= nil
+end
+
+function Luau:IsOpcodeWithAux(opname)
+	local case = self.OpCodeNameToCase[opname]
+	return case and self.OpCode[case].aux == true
+end
+
+function Luau:IsJumpInstruction(insn)
+	local name = self:GetOpName(insn)
+	return name:match("^JUMP") ~= nil
+end
+
+function Luau:IsLoadConstantInstruction(insn)
+	local name = self:GetOpName(insn)
+	return name == "LOADK" or name == "LOADN" or name == "LOADKX"
+end
+
+function Luau:Disasm(insn)
+	local op = self:INSN_OP(insn)
+	local opname = self.OpCode[op] and self.OpCode[op].name or "???"
+	local a = self:INSN_A(insn)
+	local b = self:INSN_B(insn)
+	local c = self:INSN_C(insn)
+	return string.format("%s A=%d B=%d C=%d", opname, a, b, c)
+end
+
+local function prepare(t)
+	local function reconstruct(original, fn)
+		local new = {}
+		for i, v in original do
+			fn(new, i, v)
+		end
+		return new
+	end
+
+	local LuauOpCode = t.OpCode
+
+	-- Assign opcodes their case number
+	t.OpCode = reconstruct(LuauOpCode, function(self, i, v)
+		local case = bit32.band((i - 1)*CASE_MULTIPLIER, 0xFF)
+		self[case] = v
+	end)
+
+	t:BuildOpCodeMaps()
 
 	return t
 end
