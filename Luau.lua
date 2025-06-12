@@ -5,15 +5,15 @@ local CASE_MULTIPLIER = 227 -- 0xE3
 -- Common constants and optimized bitwise function references
 -- These improve performance by reducing repeated global lookups
 local bit32_band = bit32.band         -- Bitwise AND
-local bit32_rshift = bit32.rshift        -- Bitwise right shift
-local bit32_lshift = bit32.lshift         -- Bitwise left shift
-local bit32_bnot = bit32.bnot           -- Bitwise NOT
+local bit32_rshift = bit32.rshift     -- Bitwise right shift
+local bit32_lshift = bit32.lshift     -- Bitwise left shift
+local bit32_bnot = bit32.bnot         -- Bitwise NOT
 
 -- Frequently used bitmask constants and shift values for decoding instructions
-local OPCODE_MASK = 0xFF          -- Mask to extract the opcode from instruction
-local SHIFT_8 = 8                              -- Bit shift for A field
-local SHIFT_16 = 16                          -- Bit shift for B/D field
-local SHIFT_24 = 24                          -- Bit shift for C field
+local OPCODE_MASK = 0xFF              -- Mask to extract the opcode from instruction
+local SHIFT_8 = 8                     -- Bit shift for A field
+local SHIFT_16 = 16                   -- Bit shift for B/D field
+local SHIFT_24 = 24                   -- Bit shift for C field
 local MAX_15BIT = 0x7FFF              -- Max value for signed 15-bit
 local MAX_16BIT = 0xFFFF              -- Max for unsigned 16-bit
 
