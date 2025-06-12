@@ -2,18 +2,20 @@
 
 local CASE_MULTIPLIER = 227 -- 0xE3
 
--- Optimization Constants
-local bit32_band = bit32.band
-local bit32_rshift = bit32.rshift
-local bit32_lshift = bit32.lshift
-local bit32_bnot = bit32.bnot
+-- Common constants and optimized bitwise function references
+-- These improve performance by reducing repeated global lookups
+local bit32_band = bit32.band         -- Bitwise AND
+local bit32_rshift = bit32.rshift        -- Bitwise right shift
+local bit32_lshift = bit32.lshift         -- Bitwise left shift
+local bit32_bnot = bit32.bnot           -- Bitwise NOT
 
-local OPCODE_MASK = 0xFF
-local SHIFT_8 = 8
-local SHIFT_16 = 16
-local SHIFT_24 = 24
-local MAX_15BIT = 0x7FFF
-local MAX_16BIT = 0xFFFF
+-- Frequently used bitmask constants and shift values for decoding instructions
+local OPCODE_MASK = 0xFF          -- Mask to extract the opcode from instruction
+local SHIFT_8 = 8                              -- Bit shift for A field
+local SHIFT_16 = 16                          -- Bit shift for B/D field
+local SHIFT_24 = 24                          -- Bit shift for C field
+local MAX_15BIT = 0x7FFF              -- Max value for signed 15-bit
+local MAX_16BIT = 0xFFFF              -- Max for unsigned 16-bit
 
 local Luau = {
 	-- Bytecode opcode, part of the instruction header
@@ -581,24 +583,25 @@ local Luau = {
 	}
 }
 
--- Bytecode instruction header: it's always a 32-bit integer, with low byte (first byte in little endian) containing the opcode
--- Some instruction types require more data and have more 32-bit integers following the header
+-- Extract opcode (lower 8 bits of instruction)
 function Luau:INSN_OP(insn)
 	return bit32_band(insn, OPCODE_MASK)
 end
 
--- ABC encoding: three 8-bit values, containing registers or small numbers
+-- Extract A field (next 8 bits after opcode)
 function Luau:INSN_A(insn)
 	return bit32_band(bit32_rshift(insn, SHIFT_8), 0xFF)
 end
+-- Extract B field (3rd byte in instruction)
 function Luau:INSN_B(insn)
 	return bit32_band(bit32_rshift(insn, SHIFT_16), 0xFF)
 end
+-- Extract C field (4th byte in instruction)
 function Luau:INSN_C(insn)
 	return bit32_band(bit32_rshift(insn, SHIFT_24), 0xFF)
 end
 
--- AD encoding: one 8-bit value, one signed 16-bit value
+-- Extract D field as signed 16-bit (two's complement)
 function Luau:INSN_D(insn)
 	return bit32_rshift(insn, SHIFT_16)
 end
@@ -610,31 +613,37 @@ function Luau:INSN_sD(insn)
 	return D
 end
 
--- E encoding: one signed 24-bit value
+-- Extract E field (signed 24-bit field)
 function Luau:INSN_E(insn)
 	return bit32_rshift(insn, SHIFT_8)
 end
 
--- Type to string for typeinfo
+-- Converts internal type bytecode tag to human-readable type name
+-- Example: 2 => "number", 3 => "string", 2|128 => "number?"
 function Luau:GetBaseTypeString(type, checkOptional)
+    -- Strip off optional flag using bitwise NOT
 	local tag = bit32_band(type, bit32_bnot(self.BytecodeType.LBC_TYPE_OPTIONAL_BIT))
 
+    -- Lookup table for base types
 	local map = {
 		[0] = "nil", [1] = "boolean", [2] = "number", [3] = "string",
 		[4] = "table", [5] = "function", [6] = "thread", [7] = "userdata",
 		[8] = "Vector3", [9] = "buffer", [15] = "any"
 	}
 
+	-- Fail early if unknown type
 	local result = map[tag]
 	assert(result, "Unhandled type in GetBaseTypeString")
 
+	-- Append '?' if optional type is present
 	if checkOptional and bit32_band(type, self.BytecodeType.LBC_TYPE_OPTIONAL_BIT) ~= 0 then
 		result = result .. "?"
 	end
 
 	return result
 end
--- Id provided by LOP_NAMECALL to function string representation
+-- Map from Builtin Function ID to their string representation
+-- Used when decoding fastcall or native builtins (like math.abs, bit32.bxor)
 local builtinLookup = {
 	[1] = "assert",
 	[2] = "math.abs",  [3] = "math.acos", [4] = "math.asin", [5] = "math.atan2", [6] = "math.atan",
@@ -656,15 +665,18 @@ local builtinLookup = {
 	[86] = "vector.clamp", [87] = "vector.min", [88] = "vector.max"
 }
 
+-- Convert builtin function ID to string (fallback to "none")
 function Luau:GetBuiltinInfo(bfid)
 	return builtinLookup[bfid] or "none"
 end
 
--- finalize
+-- Final transformation to optimize OpCode table:
+-- Replaces indexed array [1..n] with a hashmap keyed by opcode case ID
 local function prepare(t)
 	local LuauOpCode = t.OpCode
 	local optimized = {}
 
+	-- Convert to a fast-case dispatch table using bit-masked keys
 	for i = 1, #LuauOpCode do
 		local v = LuauOpCode[i]
 		local case = bit32_band((i - 1) * CASE_MULTIPLIER, 0xFF)
