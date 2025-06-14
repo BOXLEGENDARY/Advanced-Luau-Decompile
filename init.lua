@@ -18,27 +18,33 @@ local DEFAULT_OPTIONS = {
 	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
 }
 
-local function LoadFromUrl(moduleName)
-	local url = ("https://raw.githubusercontent.com/BOXLEGENDARY/ZDex/main/%s.lua"):format(moduleName)
+local function LoadFromUrl(x)
+	local BASE_USER = "BOXLEGENDARY"
+	local BASE_BRANCH = "main"
+	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-	local ok, raw = pcall(game.HttpGet, game, url, true)
-	if not ok then
-		warn(("(%d) Failed to fetch URL: %s"):format(math.random(), raw))
+	local loadSuccess, loadResult = pcall(function()
+		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
+		return game:HttpGet(formattedUrl, true)
+	end)
+
+	if not loadSuccess then
+		warn(`({math.random()}) MОDULE FАILЕD ТO LOАD FRОM URL: {loadResult}.`)
 		return
 	end
 
-	local f, err = loadstring(raw)
-	if not f then
-		warn(("(%d) Failed to loadstring: %s"):format(math.random(), err))
+	local success, result = pcall(loadstring, loadResult)
+	if not success then
+		warn(`({math.random()}) MОDULE FАILЕD ТO LOАDSТRING: {result}.`)
 		return
 	end
 
-	if typeof(f) ~= "function" then
-		warn(("Module returned non-function: %s"):format(typeof(f)))
+	if type(result) ~= "function" then
+		warn(`MОDULE IS {tostring(result)} (function expected)`)
 		return
 	end
 
-	return f()
+	return result()
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
@@ -46,8 +52,15 @@ local Strings = LoadFromUrl("Strings")
 local Luau = LoadFromUrl("Luau")
 
 local function LoadFlag(name)
-	local ok, val = pcall(game.GetFastFlag, game, name)
-	return ok and val or true
+	local success, result = pcall(function()
+		return game:GetFastFlag(name)
+	end)
+
+	if success then
+		return result
+	end
+
+	return true -- assume the test ended and it was successful
 end
 local LuauCompileUserdataInfo = LoadFlag("LuauCompileUserdataInfo")
 
@@ -66,83 +79,71 @@ local padRight = Implementations.padRight
 local isGlobal = Implementations.isGlobal
 
 local function Decompile(bytecode, options)
+	local bytecodeVersion, typeEncodingVersion
+
 	Reader:Set(options.ReaderFloatPrecision)
+
 	local reader = Reader.new(bytecode)
 
-	local bytecodeVersion, typeEncodingVersion
-	local stringTable, userdataTypes, protoTable = {}, {}, {}	
-
-	-- step 1: collect information from the bytecode	local function disassemble()
-		if bytecodeVersion == nil then
-			bytecodeVersion = reader:nextByte()
-		end
+	-- step 1: collect information from the bytecode
+	local function disassemble()
 		if bytecodeVersion >= 4 then
+			-- type encoding did not exist before this version
 			typeEncodingVersion = reader:nextByte()
 		end
 
 		local stringTable = {}
 		local function readStringTable()
 			local amountOfStrings = reader:nextVarInt() -- or, well, stringTable size.
-		    for i = 1, reader:nextVarInt() do
-			    stringTable[i] = reader:nextString()
-		    end
+			for i = 1, amountOfStrings do
+				stringTable[i] = reader:nextString()
+			end
 		end
 
 		local userdataTypes = {}
 		local function readUserdataTypes()
 			if LuauCompileUserdataInfo then
-			    while true do
-				    local index = reader:nextByte()
-			    	if index == 0 then break end
-			    	userdataTypes[index] = reader:nextVarInt()
-		    	end
-    		end
+				while true do
+					local index = reader:nextByte()
+					if index == 0 then
+						-- zero marks the end of type mapping
+						break
+					end
+
+					local nameRef = reader:nextVarInt()
+					userdataTypes[index] = nameRef
+				end
+			end
 		end
 
 		local protoTable = {}
-		local totalProtos = reader:nextVarInt()
-			for i = 1, totalProtos do
-			local pid = i - 1
-				id = pid,
+		local function readProtoTable()
+			local amountOfProtos = reader:nextVarInt() -- or protoTable size
+			for i = 1, amountOfProtos do
+				local protoId = i - 1 -- account for main proto
 
 				local proto = {
 					id = protoId,
+
 					instructions = {},
 					constants = {},
 					captures = {}, -- upvalue references
 					innerProtos = {},
+
 					instructionLineInfo = {}
 				}
-				protoTable[pid] = proto
+				protoTable[protoId] = proto
 
 				-- read header
 				proto.maxStackSize = reader:nextByte()
-            	proto.numParams = reader:nextByte()
-            	proto.numUpvalues = reader:nextByte()
-            	proto.isVarArg = toBoolean(reader:nextByte())
+				proto.numParams = reader:nextByte()
+				proto.numUpvalues = reader:nextByte()
+				proto.isVarArg = toBoolean(reader:nextByte())
 
 				-- read flags and typeInfo if bytecode version includes that information
-				if proto.hasTypeInfo then
-		        	local tp, tu, tl = typeSize, 0, 0
-	        		if typeEncodingVersion > 1 then
-	        			tp, tu, tl = reader:nextVarInt(), reader:nextVarInt(), reader:nextVarInt()
-	            	end
+				if bytecodeVersion >= 4 then
+					proto.flags = reader:nextByte()
 
-			        proto.typedParams = tp > 0 and reader:nextBytes(tp) or {}
-	        		if #proto.typedParams > 1 then
-		    	    	table.remove(proto.typedParams, 1)
-		    	    	table.remove(proto.typedParams, 1)
-	        		end
-	
-                	for j = 1, tu do reader:nextByte() end
-        			for j = 1, tl do reader:nextByte(); reader:nextByte(); reader:nextVarInt(); reader:nextVarInt() end
-                end
-            end
-            
-            for j = 1, reader:nextVarInt() do
-        		proto.instructions[j] = reader:nextUInt32()
-        	end
-	
 					-- collect type info
 					local resultTypedParams = {}
 					local resultTypedUpvalues = {}
