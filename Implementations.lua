@@ -1,8 +1,7 @@
-local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
+local _ENV = (getgenv or getfenv)()
 
 local Implementations = {}
 
--- Local references for performance
 local string_find = string.find
 local string_match = string.match
 local string_rep = string.rep
@@ -13,12 +12,12 @@ local rawget = rawget
 local math_max = math.max
 local string_format = string.format
 
--- Convert number to boolean (0 = false, others = true)
+-- from number to boolean
 local function toBoolean(n)
   return n ~= 0
 end
 
--- Auto escape string for safe code formatting
+-- auto escape string
 local function toEscapedString(s)
   if type(s) == "string" then
     local hasQuote = string_find(s, '"', 1, true)
@@ -34,7 +33,7 @@ local function toEscapedString(s)
   return tostring(s)
 end
 
--- Format index access for Lua code (dot or bracket notation)
+-- pick index format
 local function formatIndexString(s)
   if type(s) == "string" then
     if string_match(s, "^[%a_][%w_]*$") then
@@ -45,26 +44,26 @@ local function formatIndexString(s)
   return tostring(s)
 end
 
--- Pad string to the left
-local function padLeft(text, paddingChar, targetLen)
-  local str = tostring(text)
-  local pad = math_max(0, targetLen - #str)
-  return string_rep(paddingChar, pad) .. str
+-- safe padLeft
+local function padLeft(x, char, len)
+  local str = tostring(x)
+  local pad = math_max(0, len - #str)
+  return string_rep(char, pad) .. str
 end
 
--- Pad string to the right
-local function padRight(text, paddingChar, targetLen)
-  local str = tostring(text)
-  local pad = math_max(0, targetLen - #str)
-  return str .. string_rep(paddingChar, pad)
+-- safe padRight
+local function padRight(x, char, len)
+  local str = tostring(x)
+  local pad = math_max(0, len - #str)
+  return str .. string_rep(char, pad)
 end
 
--- Check if string is a global in current _ENV
+-- check _ENV global safely
 local function isGlobal(s)
   return rawget(_ENV, s) ~= nil
 end
 
--- Export implementations
+-- Assign all to table (no metatable, fast lookup)
 Implementations.toBoolean = toBoolean
 Implementations.toEscapedString = toEscapedString
 Implementations.formatIndexString = formatIndexString
