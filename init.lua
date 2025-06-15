@@ -19,32 +19,36 @@ local DEFAULT_OPTIONS = {
 }
 
 local function LoadFromUrl(x)
-	local BASE_USER = "BOXLEGENDARY"
-	local BASE_BRANCH = "main"
-	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+    local BASE_USER = "BOXLEGENDARY"
+    local BASE_BRANCH = "main"
+    local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-	local loadSuccess, loadResult = pcall(function()
-		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
-		return game:HttpGet(formattedUrl, true)
-	end)
+    print(string.format("[DEBUG] Loading module: %s", x))
 
-	if not loadSuccess then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАD FRОM URL: {loadResult}.`)
-		return
-	end
+    local loadSuccess, loadResult = pcall(function()
+        local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
+        print(string.format("[DEBUG] Fetching URL: %s", formattedUrl))
+        return game:HttpGet(formattedUrl, true)
+    end)
 
-	local success, result = pcall(loadstring, loadResult)
-	if not success then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАDSТRING: {result}.`)
-		return
-	end
+    if not loadSuccess then
+        warn(string.format("(%d) MODULE FAILED TO LOAD FROM URL: %s.", math.random(), loadResult))
+        return nil
+    end
 
-	if type(result) ~= "function" then
-		warn(`MОDULE IS {tostring(result)} (function expected)`)
-		return
-	end
+    local success, result = pcall(loadstring, loadResult)
+    if not success then
+        warn(string.format("(%d) MODULE FAILED TO LOADSTRING: %s.", math.random(), result))
+        return nil
+    end
 
-	return result()
+    if type(result) ~= "function" then
+        warn(string.format("MODULE IS %s (function expected)", tostring(result)))
+        return nil
+    end
+
+    print(string.format("[DEBUG] Module %s loaded successfully", x))
+    return result()
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
