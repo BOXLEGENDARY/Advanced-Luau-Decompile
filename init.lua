@@ -41,13 +41,25 @@ local function LoadFromUrl(moduleName)
 		return nil
 	end
 
-	if type(result) ~= "function" then
-		warn(string.format("[ERROR] Module '%s' did not return a function as expected. Got type: %s", moduleName, type(result)))
+	local resultType = type(result)
+	if resultType ~= "function" and resultType ~= "table" then
+		warn(string.format("[ERROR] Module '%s' did not return a function or table as expected. Got type: %s", moduleName, resultType))
 		return nil
 	end
 
-	print(string.format("[INFO] Module '%s' loaded successfully.", moduleName))
-	return result()
+	print(string.format("[INFO] Module '%s' loaded successfully. Returned type: %s", moduleName, resultType))
+
+	if resultType == "function" then
+		local ok, ret = pcall(result)
+		if not ok then
+			warn(string.format("[ERROR] Running module '%s' function returned runtime error: %s", moduleName, tostring(ret)))
+			return nil
+		end
+		return ret
+	else
+		-- result is table, return directly
+		return result
+	end
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
