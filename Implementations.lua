@@ -1,56 +1,75 @@
-local _ENV = (getgenv or getfenv)()
+local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
 
 local Implementations = {}
 
--- from number to boolean
-function Implementations.toBoolean(n)
-	return n ~= 0
+-- Local references for performance
+local string_find = string.find
+local string_match = string.match
+local string_rep = string.rep
+local string_char = string.char
+local tostring = tostring
+local type = type
+local rawget = rawget
+local math_max = math.max
+local string_format = string.format
+
+-- Convert number to boolean (0 = false, others = true)
+local function toBoolean(n)
+  return n ~= 0
 end
 
--- an easy way to escape string, most developers better code like this!!!!
-function Implementations.toEscapedString(s)
-	if type(s) == "string" then
-		local hasQuotationMarks = string.find(s, '"') ~= nil
-		local hasApostrophes = string.find(s, "'") ~= nil
+-- Auto escape string for safe code formatting
+local function toEscapedString(s)
+  if type(s) == "string" then
+    local hasQuote = string_find(s, '"', 1, true)
+    local hasApostrophe = string_find(s, "'", 1, true)
 
-		if hasQuotationMarks and hasApostrophes then
-			return "[[" ..s.. "]]"
-		elseif hasQuotationMarks and not hasApostrophes then
-			return "'" ..s.. "'"
-		end
-
-		return '"' ..s.. '"'
-	end
-
-	return tostring(s)
+    if hasQuote and hasApostrophe then
+      return "[[" .. s .. "]]"
+    elseif hasQuote then
+      return "'" .. s .. "'"
+    end
+    return '"' .. s .. '"'
+  end
+  return tostring(s)
 end
 
--- picks indexing method based on characters in a string
-function Implementations.formatIndexString(s)
-	if type(s) == "string" then
-		local validDirectPattern = "^[%a_][%w_]*$"
-		if string.find(s, validDirectPattern) then
-			return `.{s}`
-		end
-		return `["{s}"]`
-	end
-
-	return tostring(s)
+-- Format index access for Lua code (dot or bracket notation)
+local function formatIndexString(s)
+  if type(s) == "string" then
+    if string_match(s, "^[%a_][%w_]*$") then
+      return "." .. s
+    end
+    return "[" .. toEscapedString(s) .. "]"
+  end
+  return tostring(s)
 end
 
--- add left side character padding to x
-function Implementations.padLeft(x, char, padding)
-	return string.rep(char, padding - #tostring(x)) .. x
+-- Pad string to the left
+local function padLeft(text, paddingChar, targetLen)
+  local str = tostring(text)
+  local pad = math_max(0, targetLen - #str)
+  return string_rep(paddingChar, pad) .. str
 end
 
--- add right side character padding to x
-function Implementations.padRight(x, char, padding)
-	return x .. string.rep(char, padding - #tostring(x))
+-- Pad string to the right
+local function padRight(text, paddingChar, targetLen)
+  local str = tostring(text)
+  local pad = math_max(0, targetLen - #str)
+  return str .. string_rep(paddingChar, pad)
 end
 
--- returns true if passed string is a key pointing to a Roblox global
-function Implementations.isGlobal(s)
-	return _ENV[s] ~= nil
+-- Check if string is a global in current _ENV
+local function isGlobal(s)
+  return rawget(_ENV, s) ~= nil
 end
+
+-- Export implementations
+Implementations.toBoolean = toBoolean
+Implementations.toEscapedString = toEscapedString
+Implementations.formatIndexString = formatIndexString
+Implementations.padLeft = padLeft
+Implementations.padRight = padRight
+Implementations.isGlobal = isGlobal
 
 return Implementations
