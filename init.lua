@@ -1,66 +1,75 @@
 --!optimize 2
 
 local DEFAULT_OPTIONS = {
-	EnabledRemarks = {
-		ColdRemark = false,
-		InlineRemark = true -- currently unused
-	},
-	DecompilerTimeout = 10, -- seconds
-	DecompilerMode = "disasm", -- optdec/disasm
-	ReaderFloatPrecision = 7, -- up to 99
-	ShowDebugInformation = true, -- show trivial function and array allocation details
-	ShowInstructionLines = true, -- show lines as they are in the source code
-	ShowOperationIndex = true, -- show instruction index. used in jumps #n.
-	ShowOperationNames = true,
-	ShowTrivialOperations = false,
-	UseTypeInfo = true, -- allow adding types to function parameters (ex. p1: string, p2: number)
-	ListUsedGlobals = true, -- list all (non-Roblox!!) globals used in the script as a top comment
-	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
+    EnabledRemarks = {
+        ColdRemark = false,
+        InlineRemark = true -- currently unused
+    },
+    DecompilerTimeout = 10, -- seconds
+    DecompilerMode = "disasm", -- optdec/disasm
+    ReaderFloatPrecision = 7, -- up to 99
+    ShowDebugInformation = true,
+    ShowInstructionLines = true,
+    ShowOperationIndex = true,
+    ShowOperationNames = true,
+    ShowTrivialOperations = false,
+    UseTypeInfo = true,
+    ListUsedGlobals = true,
+    ReturnElapsedTime = false
 }
 
+-- Cache string.format and warn locally for performance
+local string_format = string.format
+local warn = warn
+local game = game
+
 local function LoadFromUrl(x)
-	local BASE_USER = "BOXLEGENDARY"
-	local BASE_BRANCH = "main"
-	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+    local BASE_USER = "BOXLEGENDARY"
+    local BASE_BRANCH = "main"
+    local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-	local loadSuccess, loadResult = pcall(function()
-		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
-		return game:HttpGet(formattedUrl, true)
-	end)
+    -- Format URL once
+    local formattedUrl = string_format(BASE_URL, BASE_USER, BASE_BRANCH, x)
 
-	if not loadSuccess then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАD FRОM URL: {loadResult}.`)
-		return
-	end
+    -- Protected call for HTTP GET
+    local loadSuccess, loadResult = pcall(game.HttpGet, game, formattedUrl, true)
+    if not loadSuccess then
+        warn(string_format("(%d) MODULE FAILED TO LOAD FROM URL: %s.", math.random(), tostring(loadResult)))
+        return nil
+    end
 
-	local success, result = pcall(loadstring, loadResult)
-	if not success then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАDSТRING: {result}.`)
-		return
-	end
+    -- Compile loaded code safely
+    local success, result = pcall(loadstring, loadResult)
+    if not success then
+        warn(string_format("(%d) MODULE FAILED TO LOADSTRING: %s.", math.random(), tostring(result)))
+        return nil
+    end
 
-	if type(result) ~= "function" then
-		warn(`MОDULE IS {tostring(result)} (function expected)`)
-		return
-	end
+    if type(result) ~= "function" then
+        warn("MODULE IS " .. tostring(result) .. " (function expected)")
+        return nil
+    end
 
-	return result()
+    -- Execute and return module result
+    return result()
 end
+
+-- Load modules once and cache results
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
 local Strings = LoadFromUrl("Strings")
 local Luau = LoadFromUrl("Luau")
 
+-- Cache math.random locally
+local math_random = math.random
+
 local function LoadFlag(name)
-	local success, result = pcall(function()
-		return game:GetFastFlag(name)
-	end)
-
-	if success then
-		return result
-	end
-
-	return true -- assume the test ended and it was successful
+    -- Protect call to game:GetFastFlag
+    local success, result = pcall(game.GetFastFlag, game, name)
+    if success then
+        return result
+    end
+    return true -- assume flag enabled if GetFastFlag fails
 end
 local LuauCompileUserdataInfo = LoadFlag("LuauCompileUserdataInfo")
 
