@@ -44,7 +44,13 @@ local function LoadFromUrl(x)
 		return
 	end
 
-	return result()
+	local ok, module = pcall(result)
+	if not ok then
+		warn(`({math.random()}) MОDULE RUNTIME ERROR: {module}`)
+		return
+	end
+
+	return module
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
