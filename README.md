@@ -5,7 +5,7 @@ FunFact: I was just trying to make it better I didn’t try to use Execute to de
 
 # has problem with Execute
 
-idk why i find anything but I don't found or know anything why it error
+if u found error contact me pls
 
 # NOTE
 
