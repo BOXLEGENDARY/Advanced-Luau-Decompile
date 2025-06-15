@@ -19,9 +19,9 @@ local DEFAULT_OPTIONS = {
 }
 
 local function LoadFromUrl(x)
-	local BASE_USER = "w-a-e"
+	local BASE_USER = "BOXLEGENDARY"
 	local BASE_BRANCH = "main"
-	local BASE_URL = "https://raw.githubusercontent.com/%s/Advanced-Decompiler-V3/%s/%s.lua"
+	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
 	local loadSuccess, loadResult = pcall(function()
 		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
