@@ -34,8 +34,6 @@ local function LoadFromUrl(moduleName)
 		error(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", moduleName, tostring(loadResult)))
 	end
 
-	-- ตัดการแสดงผล source code ออก
-
 	local success, result = pcall(loadstring, loadResult)
 	if not success then
 		error(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
