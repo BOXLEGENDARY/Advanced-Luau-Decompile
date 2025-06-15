@@ -2,21 +2,6 @@
 
 local CASE_MULTIPLIER = 227 -- 0xE3
 
--- Common constants and optimized bitwise function references
--- These improve performance by reducing repeated global lookups
-local bit32_band = bit32.band         -- Bitwise AND
-local bit32_rshift = bit32.rshift     -- Bitwise right shift
-local bit32_lshift = bit32.lshift     -- Bitwise left shift
-local bit32_bnot = bit32.bnot         -- Bitwise NOT
-
--- Frequently used bitmask constants and shift values for decoding instructions
-local OPCODE_MASK = 0xFF              -- Mask to extract the opcode from instruction
-local SHIFT_8 = 8                     -- Bit shift for A field
-local SHIFT_16 = 16                   -- Bit shift for B/D field
-local SHIFT_24 = 24                   -- Bit shift for C field
-local MAX_15BIT = 0x7FFF              -- Max value for signed 15-bit
-local MAX_16BIT = 0xFFFF              -- Max for unsigned 16-bit
-
 local Luau = {
 	-- Bytecode opcode, part of the instruction header
 	OpCode = {
@@ -583,107 +568,299 @@ local Luau = {
 	}
 }
 
--- Extract opcode (lower 8 bits of instruction)
+-- Bytecode instruction header: it's always a 32-bit integer, with low byte (first byte in little endian) containing the opcode
+-- Some instruction types require more data and have more 32-bit integers following the header
 function Luau:INSN_OP(insn)
-	return bit32_band(insn, OPCODE_MASK)
+	return bit32.band(insn, 0xFF)
 end
 
--- Extract A field (next 8 bits after opcode)
+-- ABC encoding: three 8-bit values, containing registers or small numbers
 function Luau:INSN_A(insn)
-	return bit32_band(bit32_rshift(insn, SHIFT_8), 0xFF)
+	return bit32.band(bit32.rshift(insn, 8), 0xFF)
 end
--- Extract B field (3rd byte in instruction)
 function Luau:INSN_B(insn)
-	return bit32_band(bit32_rshift(insn, SHIFT_16), 0xFF)
+	return bit32.band(bit32.rshift(insn, 16), 0xFF)
 end
--- Extract C field (4th byte in instruction)
 function Luau:INSN_C(insn)
-	return bit32_band(bit32_rshift(insn, SHIFT_24), 0xFF)
+	return bit32.band(bit32.rshift(insn, 24), 0xFF)
 end
 
--- Extract D field as signed 16-bit (two's complement)
-function Luau:INSN_D(insn)
-	return bit32_rshift(insn, SHIFT_16)
+-- AD encoding: one 8-bit value, one signed 16-bit value
+function Luau:INSN_D(insn) -- (0..32767)
+	return bit32.rshift(insn, 16)
 end
-function Luau:INSN_sD(insn)
-	local D = bit32_rshift(insn, SHIFT_16)
-	if D > MAX_15BIT and D <= MAX_16BIT then
-		return (-(MAX_16BIT - D)) - 1
+function Luau:INSN_sD(insn) -- (-32768..32767)
+	local D = Luau:INSN_D(insn)
+	local sD = D
+	if D > 0x7FFF and D <= 0xFFFF then
+		sD = (-(0xFFFF - D)) - 1
 	end
-	return D
+	return sD
 end
 
--- Extract E field (signed 24-bit field)
+-- E encoding: one signed 24-bit value
 function Luau:INSN_E(insn)
-	return bit32_rshift(insn, SHIFT_8)
+	return bit32.rshift(insn, 8)
 end
 
--- Converts internal type bytecode tag to human-readable type name
--- Example: 2 => "number", 3 => "string", 2|128 => "number?"
+-- Type to string for typeinfo
 function Luau:GetBaseTypeString(type, checkOptional)
-    -- Strip off optional flag using bitwise NOT
-	local tag = bit32_band(type, bit32_bnot(self.BytecodeType.LBC_TYPE_OPTIONAL_BIT))
+	local LuauBytecodeType = Luau.BytecodeType
 
-    -- Lookup table for base types
-	local map = {
-		[0] = "nil", [1] = "boolean", [2] = "number", [3] = "string",
-		[4] = "table", [5] = "function", [6] = "thread", [7] = "userdata",
-		[8] = "Vector3", [9] = "buffer", [15] = "any"
-	}
+	local tag = bit32.band(type, bit32.bnot(LuauBytecodeType.LBC_TYPE_OPTIONAL_BIT))
 
-	-- Fail early if unknown type
-	local result = map[tag]
-	assert(result, "Unhandled type in GetBaseTypeString")
+	local result
 
-	-- Append '?' if optional type is present
-	if checkOptional and bit32_band(type, self.BytecodeType.LBC_TYPE_OPTIONAL_BIT) ~= 0 then
-		result = result .. "?"
+	if tag == LuauBytecodeType.LBC_TYPE_NIL then
+		result = "nil"
+	elseif tag == LuauBytecodeType.LBC_TYPE_BOOLEAN then
+		result = "boolean"
+	elseif tag == LuauBytecodeType.LBC_TYPE_NUMBER then
+		result = "number"
+	elseif tag == LuauBytecodeType.LBC_TYPE_STRING then
+		result = "string"
+	elseif tag == LuauBytecodeType.LBC_TYPE_TABLE then
+		result = "table" -- not a valid type by itself
+	elseif tag == LuauBytecodeType.LBC_TYPE_FUNCTION then
+		result = "function" -- not a valid type by itself
+	elseif tag == LuauBytecodeType.LBC_TYPE_THREAD then
+		result = "thread"
+	elseif tag == LuauBytecodeType.LBC_TYPE_USERDATA then
+		result = "userdata" -- might be Instance
+	elseif tag == LuauBytecodeType.LBC_TYPE_VECTOR then
+		result = "Vector3"
+	elseif tag == LuauBytecodeType.LBC_TYPE_BUFFER then
+		result = "buffer"
+	elseif tag == LuauBytecodeType.LBC_TYPE_ANY then
+		result = "any"
+	else
+		error("Unhandled type in GetBaseTypeString", 2)
+	end
+
+	if checkOptional then
+		local optional = bit32.band(type, LuauBytecodeType.LBC_TYPE_OPTIONAL_BIT) == 0 and "" or "?"
+		result ..= optional
 	end
 
 	return result
 end
--- Map from Builtin Function ID to their string representation
--- Used when decoding fastcall or native builtins (like math.abs, bit32.bxor)
-local builtinLookup = {
-	[1] = "assert",
-	[2] = "math.abs",  [3] = "math.acos", [4] = "math.asin", [5] = "math.atan2", [6] = "math.atan",
-	[7] = "math.ceil", [8] = "math.cosh", [9] = "math.cos", [10] = "math.deg", [11] = "math.exp",
-	[12] = "math.floor", [13] = "math.fmod", [14] = "math.frexp", [15] = "math.ldexp", [16] = "math.log10",
-	[17] = "math.log", [18] = "math.max", [19] = "math.min", [20] = "math.modf", [21] = "math.pow",
-	[22] = "math.rad", [23] = "math.sinh", [24] = "math.sin", [25] = "math.sqrt", [26] = "math.tanh", [27] = "math.tan",
-	[28] = "bit32.arshift", [29] = "bit32.band", [30] = "bit32.bnot", [31] = "bit32.bor", [32] = "bit32.bxor",
-	[33] = "bit32.btest", [34] = "bit32.extract", [35] = "bit32.lrotate", [36] = "bit32.lshift", [37] = "bit32.replace",
-	[38] = "bit32.rrotate", [39] = "bit32.rshift",
-	[40] = "type", [41] = "string.byte", [42] = "string.char", [43] = "string.len",
-	[44] = "typeof", [45] = "string.sub", [46] = "math.clamp", [47] = "math.sign", [48] = "math.round",
-	[49] = "rawset", [50] = "rawget", [51] = "rawequal", [52] = "table.insert", [53] = "table.unpack",
-	[54] = "Vector3.new", [55] = "bit32.countlz", [56] = "bit32.countrz", [57] = "select",
-	[58] = "rawlen", [59] = "bit32.extract", [60] = "getmetatable", [61] = "setmetatable",
-	[62] = "tonumber", [63] = "tostring",
-	[78] = "vector.magnitude", [79] = "vector.normalize", [80] = "vector.cross", [81] = "vector.dot",
-	[82] = "vector.floor", [83] = "vector.ceil", [84] = "vector.abs", [85] = "vector.sign",
-	[86] = "vector.clamp", [87] = "vector.min", [88] = "vector.max"
-}
-
--- Convert builtin function ID to string (fallback to "none")
+-- Id provided by LOP_NAMECALL to function string representation
 function Luau:GetBuiltinInfo(bfid)
-	return builtinLookup[bfid] or "none"
+	local LuauBuiltinFunction = Luau.BuiltinFunction
+
+	if bfid == LuauBuiltinFunction.LBF_NONE then
+		return "none"
+	else
+		if bfid == LuauBuiltinFunction.LBF_ASSERT then
+			return "assert"
+		elseif bfid == LuauBuiltinFunction.LBF_TYPE then
+			return "type"
+		elseif bfid == LuauBuiltinFunction.LBF_TYPEOF then
+			return "typeof"
+		elseif bfid == LuauBuiltinFunction.LBF_RAWSET then
+			return "rawset"
+		elseif bfid == LuauBuiltinFunction.LBF_RAWGET then
+			return "rawget"
+		elseif bfid == LuauBuiltinFunction.LBF_RAWEQUAL then
+			return "rawequal"
+		elseif bfid == LuauBuiltinFunction.LBF_RAWLEN then
+			return "rawlen"
+		elseif bfid == LuauBuiltinFunction.LBF_TABLE_UNPACK then
+			return "unpack"
+		elseif bfid == LuauBuiltinFunction.LBF_SELECT_VARARG then
+			return "select"
+		elseif bfid == LuauBuiltinFunction.LBF_GETMETATABLE then
+			return "getmetatable"
+		elseif bfid == LuauBuiltinFunction.LBF_SETMETATABLE then
+			return "setmetatable"
+		elseif bfid == LuauBuiltinFunction.LBF_TONUMBER then
+			return "tonumber"
+		elseif bfid == LuauBuiltinFunction.LBF_TOSTRING then
+			return "tostring"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_MATH_ABS then
+			return "math.abs"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_ACOS then
+			return "math.acos"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_ASIN then
+			return "math.asin"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_ATAN2 then
+			return "math.atan2"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_ATAN then
+			return "math.atan"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_CEIL then
+			return "math.ceil"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_COSH then
+			return "math.cosh"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_COS then
+			return "math.cos"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_DEG then
+			return "math.deg"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_EXP then
+			return "math.exp"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_FLOOR then
+			return "math.floor"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_FMOD then
+			return "math.fmod"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_FREXP then
+			return "math.frexp"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_LDEXP then
+			return "math.ldexp"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_LOG10 then
+			return "math.log10"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_LOG then
+			return "math.log"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_MAX then
+			return "math.max"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_MIN then
+			return "math.min"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_MODF then
+			return "math.modf"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_POW then
+			return "math.pow"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_RAD then
+			return "math.rad"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_SINH then
+			return "math.sinh"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_SIN then
+			return "math.sin"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_SQRT then
+			return "math.sqrt"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_TANH then
+			return "math.tanh"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_TAN then
+			return "math.tan"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_CLAMP then
+			return "math.clamp"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_SIGN then
+			return "math.sign"
+		elseif bfid == LuauBuiltinFunction.LBF_MATH_ROUND then
+			return "math.round"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_BIT32_ARSHIFT then
+			return "bit32.arshift"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BAND then
+			return "bit32.band"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BNOT then
+			return "bit32.bnot"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BOR then
+			return "bit32.bor"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BXOR then
+			return "bit32.bxor"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BTEST then
+			return "bit32.btest"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_EXTRACT or bfid == LuauBuiltinFunction.LBF_BIT32_EXTRACTK then
+			return "bit32.extract"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_LROTATE then
+			return "bit32.lrotate"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_LSHIFT then
+			return "bit32.lshift"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_REPLACE then
+			return "bit32.replace"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_RROTATE then
+			return "bit32.rrotate"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_RSHIFT then
+			return "bit32.rshift"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_COUNTLZ then
+			return "bit32.countlz"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_COUNTRZ then
+			return "bit32.countrz"
+		elseif bfid == LuauBuiltinFunction.LBF_BIT32_BYTESWAP then
+			return "bit32.byteswap"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_STRING_BYTE then
+			return "string.byte"
+		elseif bfid == LuauBuiltinFunction.LBF_STRING_CHAR then
+			return "string.char"
+		elseif bfid == LuauBuiltinFunction.LBF_STRING_LEN then
+			return "string.len"
+		elseif bfid == LuauBuiltinFunction.LBF_STRING_SUB then
+			return "string.sub"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_TABLE_INSERT then
+			return "table.insert"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_VECTOR then
+			return "Vector3.new"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_BUFFER_READI8 then
+			return "buffer.readi8"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READU8 then
+			return "buffer.readu8"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_WRITEU8 then
+			return "buffer.writeu8"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READI16 then
+			return "buffer.readi16"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READU16 then
+			return "buffer.readu16"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_WRITEU16 then
+			return "buffer.writeu16"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READI32 then
+			return "buffer.readi32"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READU32 then
+			return "buffer.readu32"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_WRITEU32 then
+			return "buffer.writeu32"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READF32 then
+			return "buffer.readf32"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_WRITEF32 then
+			return "buffer.writef32"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_READF64 then
+			return "buffer.readf64"
+		elseif bfid == LuauBuiltinFunction.LBF_BUFFER_WRITEF64 then
+			return "buffer.writef64"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_VECTOR_MAGNITUDE then
+			return "vector.magnitude"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_NORMALIZE then
+			return "vector.normalize"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_CROSS then
+			return "vector.cross"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_DOT then
+			return "vector.dot"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_FLOOR then
+			return "vector.floor"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_CEIL then
+			return "vector.ceil"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_ABS then
+			return "vector.abs"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_SIGN then
+			return "vector.sign"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_CLAMP then
+			return "vector.clamp"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_MIN then
+			return "vector.min"
+		elseif bfid == LuauBuiltinFunction.LBF_VECTOR_MAX then
+			return "vector.max"
+		end
+	end
 end
 
--- Final transformation to optimize OpCode table:
--- Replaces indexed array [1..n] with a hashmap keyed by opcode case ID
+-- finalize
 local function prepare(t)
-	local LuauOpCode = t.OpCode
-	local optimized = {}
-
-	-- Convert to a fast-case dispatch table using bit-masked keys
-	for i = 1, #LuauOpCode do
-		local v = LuauOpCode[i]
-		local case = bit32_band((i - 1) * CASE_MULTIPLIER, 0xFF)
-		optimized[case] = v
+	local function reconstruct(original, fn)
+		local new = {}
+		for i, v in original do
+			fn(new, i, v)
+		end
+		return new
 	end
 
-	t.OpCode = optimized
+	local LuauOpCode = t.OpCode
+
+	-- Assign opcodes their case number
+	t.OpCode = reconstruct(LuauOpCode, function(self, i, v)
+		local case = bit32.band((i - 1)*CASE_MULTIPLIER, 0xFF)
+		self[case] = v
+	end)
+
 	return t
 end
 
