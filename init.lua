@@ -23,7 +23,7 @@ local function LoadFromUrl(moduleName)
 	local BASE_BRANCH = "main"
 	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-	print(string.format("[INFO] Loading module '%s'...", moduleName))
+	warn(string.format("[INFO] Loading module '%s'...", moduleName))
 
 	local loadSuccess, loadResult = pcall(function()
 		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
@@ -31,37 +31,32 @@ local function LoadFromUrl(moduleName)
 	end)
 
 	if not loadSuccess then
-		warn(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", moduleName, tostring(loadResult)))
-		return nil
+		error(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", moduleName, tostring(loadResult)))
 	end
 
-	print(string.format("[DEBUG] Loaded source for module '%s':\n%s", moduleName, string.sub(loadResult, 1, 300))) -- แสดงแค่ 300 ตัวแรก
+	-- ตัดการแสดงผล source code ออก
 
 	local success, result = pcall(loadstring, loadResult)
 	if not success then
-		warn(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
-		return nil
+		error(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
 	end
 
 	print(string.format("[DEBUG] loadstring returned type for module '%s': %s", moduleName, type(result)))
 
 	local resultType = type(result)
 	if resultType ~= "function" and resultType ~= "table" then
-		warn(string.format("[ERROR] Module '%s' did not return a function or table as expected. Got type: %s", moduleName, resultType))
-		return nil
+		error(string.format("[ERROR] Module '%s' did not return a function or table as expected. Got type: %s", moduleName, resultType))
 	end
 
-	print(string.format("[INFO] Module '%s' loaded successfully. Returned type: %s", moduleName, resultType))
+	warn(string.format("[INFO] Module '%s' loaded successfully. Returned type: %s", moduleName, resultType))
 
 	if resultType == "function" then
 		local ok, ret = pcall(result)
 		if not ok then
-			warn(string.format("[ERROR] Running module '%s' function returned runtime error: %s", moduleName, tostring(ret)))
-			return nil
+			error(string.format("[ERROR] Running module '%s' function returned runtime error: %s", moduleName, tostring(ret)))
 		end
 		return ret
 	else
-		-- result is table, return directly
 		return result
 	end
 end
