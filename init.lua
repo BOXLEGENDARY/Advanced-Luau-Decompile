@@ -35,11 +35,15 @@ local function LoadFromUrl(moduleName)
 		return nil
 	end
 
+	print(string.format("[DEBUG] Loaded source for module '%s':\n%s", moduleName, string.sub(loadResult, 1, 300))) -- แสดงแค่ 300 ตัวแรก
+
 	local success, result = pcall(loadstring, loadResult)
 	if not success then
 		warn(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
 		return nil
 	end
+
+	print(string.format("[DEBUG] loadstring returned type for module '%s': %s", moduleName, type(result)))
 
 	local resultType = type(result)
 	if resultType ~= "function" and resultType ~= "table" then
