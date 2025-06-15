@@ -29,23 +29,30 @@ local function LoadFromUrl(x)
 	end)
 
 	if not loadSuccess then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАD FRОM URL: {loadResult}.`)
+		warn(`({math.random()}) MODULE FAILED TO LOAD FROM URL: {loadResult}.`)
 		return
 	end
 
-	local success, result = pcall(loadstring, loadResult)
-	if not success then
-		warn(`({math.random()}) MОDULE FАILЕD ТO LOАDSТRING: {result}.`)
+	local chunkSuccess, chunk = pcall(loadstring, loadResult)
+	if not chunkSuccess then
+		warn(`({math.random()}) MODULE FAILED TO LOADSTRING: {chunk}.`)
 		return
 	end
 
-	if type(result) ~= "function" then
-		warn(`MОDULE IS {tostring(result)} (function expected)`)
+	local execSuccess, result = pcall(chunk)
+	if not execSuccess then
+		warn(`({math.random()}) MODULE EXECUTION ERROR: {result}.`)
 		return
 	end
 
-	return result()
+	if type(result) ~= "table" then
+		warn(`MODULE IS {typeof(result)} (table expected)`)
+		return
+	end
+
+	return result
 end
+
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
 local Strings = LoadFromUrl("Strings")
