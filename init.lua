@@ -47,6 +47,9 @@ local function LoadFromUrl(x)
 	return result()
 end
 local Implementations = LoadFromUrl("Implementations")
+if not Implementations then
+    error("Failed to load module Implementations")
+end
 local Reader = LoadFromUrl("Reader")
 local Strings = LoadFromUrl("Strings")
 local Luau = LoadFromUrl("Luau")
