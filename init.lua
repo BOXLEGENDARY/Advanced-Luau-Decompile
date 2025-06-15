@@ -18,37 +18,36 @@ local DEFAULT_OPTIONS = {
 	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
 }
 
-local function LoadFromUrl(x)
-    local BASE_USER = "BOXLEGENDARY"
-    local BASE_BRANCH = "main"
-    local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+local function LoadFromUrl(moduleName)
+	local BASE_USER = "BOXLEGENDARY"
+	local BASE_BRANCH = "main"
+	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-    print(string.format("[DEBUG] Loading module: %s", x))
+	print(string.format("[INFO] Loading module '%s'...", moduleName))
 
-    local loadSuccess, loadResult = pcall(function()
-        local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
-        print(string.format("[DEBUG] Fetching URL: %s", formattedUrl))
-        return game:HttpGet(formattedUrl, true)
-    end)
+	local loadSuccess, loadResult = pcall(function()
+		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+		return game:HttpGet(formattedUrl, true)
+	end)
 
-    if not loadSuccess then
-        warn(string.format("(%d) MODULE FAILED TO LOAD FROM URL: %s.", math.random(), loadResult))
-        return nil
-    end
+	if not loadSuccess then
+		warn(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", moduleName, tostring(loadResult)))
+		return nil
+	end
 
-    local success, result = pcall(loadstring, loadResult)
-    if not success then
-        warn(string.format("(%d) MODULE FAILED TO LOADSTRING: %s.", math.random(), result))
-        return nil
-    end
+	local success, result = pcall(loadstring, loadResult)
+	if not success then
+		warn(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
+		return nil
+	end
 
-    if type(result) ~= "function" then
-        warn(string.format("MODULE IS %s (function expected)", tostring(result)))
-        return nil
-    end
+	if type(result) ~= "function" then
+		warn(string.format("[ERROR] Module '%s' did not return a function as expected. Got type: %s", moduleName, type(result)))
+		return nil
+	end
 
-    print(string.format("[DEBUG] Module %s loaded successfully", x))
-    return result()
+	print(string.format("[INFO] Module '%s' loaded successfully.", moduleName))
+	return result()
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
