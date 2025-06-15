@@ -3,15 +3,13 @@
 
 FunFact: I was just trying to make it better I didn’t try to use Execute to decompile but there are some problems If you run this script it will use Execute to decompile I don’t know how that happens
 
-# has problem with Execute ( FIX )
-
-if u found error contact me pls
-
-NOW DECOMPLINE DON'T HAVE PROBLEM
+NOW DECOMPLINE DON'T HAVE PROBLEM ( FIX )
 
 # NOTE
 
 upgrade by sys_$tab group ( not lego hacker )
+
+if u found error contact me
 
 # DISCORD
 
