@@ -9,7 +9,7 @@ if u found error contact me pls
 
 # NOTE
 
-made by sys_$tab group ( not lego hacker )
+upgrade by sys_$tab group ( not lego hacker )
 
 # DISCORD
 
