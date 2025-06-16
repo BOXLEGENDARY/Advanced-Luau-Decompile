@@ -18,6 +18,7 @@ local LIST_USED_GLOBALS = false -- list all (non-Roblox!!) globals used in the s
 local RETURN_ELAPSED_TIME = true -- return time it took to finish processing the bytecode
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
+local GitHubUrlShow = false
 
 -- For studio, put your bytecode here.
 local input = ``
@@ -81,7 +82,12 @@ LoadFromUrl = function(moduleName)
 		log("WARN", "Remote mode active. Attempting to fetch module...")
 
 		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-		log("DEBUG", "Fetching module source from GitHub... (URL hidden for security)")
+
+		if GitHubUrlShow then
+			log("DEBUG", "Fetching module source from GitHub... URL: %s", formattedUrl)
+		else
+			log("DEBUG", "Fetching module source from GitHub... (URL hidden for security)")
+		end
 
 		local httpSuccess, response = pcall(function()
 			return game:HttpGet(formattedUrl, true)
