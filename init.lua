@@ -15,7 +15,8 @@ local DEFAULT_OPTIONS = {
 	ShowTrivialOperations = false,
 	UseTypeInfo = false, -- allow adding types to function parameters (ex. p1: string, p2: number)
 	ListUsedGlobals = false, -- list all (non-Roblox!!) globals used in the script as a top comment
-	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
+	ReturnElapsedTime = false, -- return time it took to finish processing the bytecode
+    FormatCode = true -- before using formatch set all flase
 }
 
 local function LoadFromUrl(moduleName)
@@ -803,15 +804,28 @@ local function Decompile(bytecode, options)
 		end
 
 		-- received result. embed final things here.
-		local function processResult(result)
-			local embed = ""
+        local function processResult(result)
+    	local embed = ""
 
-			if options.ListUsedGlobals and #usedGlobals > 0 then
-				embed ..= string.format(Strings.USED_GLOBALS, table.concat(usedGlobals, ", "))
-			end
+    	embed ..= "-- FORMATTED = " .. tostring(options.FormatCode) .. "\n"
 
-			return embed .. result
-		end
+    	if options.ListUsedGlobals and #usedGlobals > 0 then
+    		embed ..= string.format(Strings.USED_GLOBALS, table.concat(usedGlobals, ", "))
+    	end
+
+    	if options.FormatCode then
+    		local function formatLuaCode(code)
+		    	code = code:gsub("\r\n", "\n") -- Normalize
+	    		code = code:gsub("\n%s+\n", "\n")
+	    		code = code:gsub("[ \t]+$", "")
+	    		return code
+	    	end
+
+	    	result = formatLuaCode(result)
+    	end
+
+    	return embed .. result
+    end
 
 		-- now proceed based off mode
 		if options.DecompilerMode == "disasm" then -- disassembler
