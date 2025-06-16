@@ -14,6 +14,10 @@ if u found error contact me
 
 this is a last version 
 
+# NOTE 3
+
+no formatch code saddle 😔
+
 # DISCORD
 
 if u want to help @xsxs_xsxs_z
