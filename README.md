@@ -1,5 +1,6 @@
 # CREDIT BY W.A.E
 # luau decompline for roblox
+# best luau decompline in 2025 ( not better than execute decompline because roblox had limit to make it better )
 
 upgrade form old version
 
@@ -8,6 +9,10 @@ upgrade form old version
 upgrade by sys_$tab group ( not lego hacker )
 
 if u found error contact me
+
+# NOTE 2
+
+this is a last version 
 
 # DISCORD
 
