@@ -35,37 +35,36 @@ LoadFromUrl = function(moduleName)
 
 	local function log(level, message, ...)
 		local prefix = timestamp() .. " [" .. level .. "] "
-		if select("#", ...) > 0 then
-			print(prefix .. message:format(...))
-		else
-			print(prefix .. message)
-		end
-	end
+		local fullMessage = select("#", ...) > 0 and message:format(...) or message
 
-	local function fatal(message, ...)
-		local fullMsg = timestamp() .. " [FATAL] " .. message:format(...)
-		error(fullMsg, 2)
+		if level == "FATAL" then
+			error(prefix .. fullMessage, 2)
+		elseif level == "INFO" or level == "WARN" or level == "SUCCESS" then
+			warn(prefix .. fullMessage)
+		else
+			print(prefix .. fullMessage)
+		end
 	end
 
 	local debugID = tostring(math.random(100000, 999999))
 	log("DEBUG", "LoadFromUrl started (debugID: %s) | moduleName: '%s'", debugID, tostring(moduleName))
 
 	if type(moduleName) ~= "string" or #moduleName == 0 then
-		fatal("Invalid module name: '%s'", tostring(moduleName))
+		log("FATAL", "Invalid module name: '%s'", tostring(moduleName))
 	end
 
 	if USE_IN_STUDIO then
-		log("INFO", "Studio mode active. Attempting to require from workspace.")
+		log("WARN", "Studio mode active. Attempting to require from workspace...")
 
 		local success, result = pcall(function()
 			local container = workspace:FindFirstChild("Disassembler")
 			if not container then
-				fatal("Missing 'Disassembler' folder in workspace.")
+				error("Missing 'Disassembler' folder in workspace.")
 			end
 
 			local module = container:FindFirstChild(moduleName)
 			if not module then
-				fatal("Module '%s' not found inside workspace.Disassembler", moduleName)
+				error("Module '" .. moduleName .. "' not found inside workspace.Disassembler")
 			end
 
 			log("DEBUG", "Found module '%s' in workspace. Attempting require...", moduleName)
@@ -73,47 +72,48 @@ LoadFromUrl = function(moduleName)
 		end)
 
 		if not success then
-			fatal("Require failed in Studio mode. Reason: %s", tostring(result))
+			log("FATAL", "Require failed in Studio mode. Reason: %s", tostring(result))
 		end
 
 		log("SUCCESS", "Module '%s' loaded successfully in Studio (debugID: %s)", moduleName, debugID)
 		return result
 	else
-		log("INFO", "Remote mode active. Preparing GitHub request...")
+		log("WARN", "Remote mode active. Attempting to fetch module...")
+
 		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-		log("DEBUG", "GitHub URL: %s", formattedUrl)
+		log("DEBUG", "Fetching module source from GitHub... (URL hidden for security)")
 
 		local httpSuccess, response = pcall(function()
 			return game:HttpGet(formattedUrl, true)
 		end)
 
 		if not httpSuccess then
-			fatal("Failed to fetch from GitHub for module '%s'. Reason: %s", moduleName, tostring(response))
+			log("FATAL", "Failed to fetch from GitHub for module '%s'. Reason: %s", moduleName, tostring(response))
 		end
 
 		if type(response) ~= "string" or #response == 0 then
-			fatal("GitHub returned empty or invalid content for module '%s'", moduleName)
+			log("FATAL", "GitHub returned empty or invalid content for module '%s'", moduleName)
 		end
 
-		log("DEBUG", "Module fetched (Size: %d bytes). Attempting to compile...", #response)
+		log("DEBUG", "Module fetched. Size: %d bytes. Attempting to compile...", #response)
 
 		local compileSuccess, compiled = pcall(loadstring, response)
 		if not compileSuccess then
-			fatal("Compilation failed for '%s'. Error: %s", moduleName, tostring(compiled))
+			log("FATAL", "Compilation failed for '%s'. Error: %s", moduleName, tostring(compiled))
 		end
 
 		local resultType = type(compiled)
 		log("DEBUG", "loadstring returned: %s", resultType)
 
 		if resultType ~= "function" and resultType ~= "table" then
-			fatal("Module '%s' must return function or table. Got: %s", moduleName, resultType)
+			log("FATAL", "Module '%s' must return function or table. Got: %s", moduleName, resultType)
 		end
 
 		if resultType == "function" then
 			log("DEBUG", "Calling compiled function...")
 			local ok, funcResult = pcall(compiled)
 			if not ok then
-				fatal("Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
+				log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
 			end
 			log("SUCCESS", "Module '%s' executed successfully (Function)", moduleName)
 			return funcResult
