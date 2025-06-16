@@ -4,20 +4,16 @@
 
 upgrade form old version
 
-# NOTE
-
-upgrade by sys_$tab group ( not lego hacker )
-
-if u found error contact me
-
-# NOTE 2
+# VERSION
 
 this is a last version 
 
-# NOTE 3
+# NOTE
+
+upgrade by sys_$tab group ( not lego hacker )
 
 no formatch code saddle 😔
 
 # DISCORD
 
-if u want to help @xsxs_xsxs_z
+if u want to help others project or report bug + error @xsxs_xsxs_z
