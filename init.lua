@@ -101,12 +101,9 @@ LoadFromUrl = function(moduleName)
         log("INFO", "Mode: Remote (Fetching from GitHub)")
 
         local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-        log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
-
+        
         if GitHubUrlShow then
-            log("DEBUG", "GitHub URL shown: %s", formattedUrl)
-        else
-            log("DEBUG", "GitHub URL hidden due to security setting")
+            log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
         end
 
         local httpSuccess, response = pcall(function()
