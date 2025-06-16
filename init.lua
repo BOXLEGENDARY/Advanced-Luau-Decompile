@@ -3,7 +3,7 @@
 
 local ENABLED_REMARKS = {
 	COLD_REMARK = false,
-	INLINE_REMARK = true -- currently unused
+	INLINE_REMARK = false -- currently unused
 }
 local DECOMPILER_TIMEOUT = 10 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
@@ -15,7 +15,7 @@ local SHOW_OPERATION_INDEX = false -- show instruction index. used in jumps #n.
 local SHOW_TRIVIAL_OPERATIONS = false
 local USE_TYPE_INFO = false -- allow adding types to function parameters (ex. p1: string, p2: number)
 local LIST_USED_GLOBALS = false -- list all (non-Roblox!!) globals used in the script as a top comment
-local RETURN_ELAPSED_TIME = true -- return time it took to finish processing the bytecode
+local RETURN_ELAPSED_TIME = false -- return time it took to finish processing the bytecode
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 local GitHubUrlShow = false
