@@ -3,7 +3,7 @@
 local DEFAULT_OPTIONS = {
 	EnabledRemarks = {
 		ColdRemark = false,
-		InlineRemark = true -- currently unused
+		InlineRemark = false -- currently unused
 	},
 	DecompilerTimeout = 10, -- seconds
 	DecompilerMode = "disasm", -- optdec/disasm
@@ -62,6 +62,7 @@ local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
 local Strings = LoadFromUrl("Strings")
 local Luau = LoadFromUrl("Luau")
+local Base64 = LoadFromUrl("Base64")
 
 local function LoadFlag(name)
 	local success, result = pcall(function()
