@@ -3,7 +3,7 @@
 local DEFAULT_OPTIONS = {
 	EnabledRemarks = {
 		ColdRemark = false,
-		InlineRemark = true -- currently unused
+		InlineRemark = false -- currently unused
 	},
 	DecompilerTimeout = 10, -- seconds
 	DecompilerMode = "disasm", -- optdec/disasm
