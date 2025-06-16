@@ -13,8 +13,8 @@ local DEFAULT_OPTIONS = {
 	ShowOperationIndex = false, -- show instruction index. used in jumps #n.
 	ShowOperationNames = false,
 	ShowTrivialOperations = false,
-	UseTypeInfo = true, -- allow adding types to function parameters (ex. p1: string, p2: number)
-	ListUsedGlobals = true, -- list all (non-Roblox!!) globals used in the script as a top comment
+	UseTypeInfo = false, -- allow adding types to function parameters (ex. p1: string, p2: number)
+	ListUsedGlobals = false, -- list all (non-Roblox!!) globals used in the script as a top comment
 	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
 }
 
