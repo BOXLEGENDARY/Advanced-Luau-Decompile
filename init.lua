@@ -814,18 +814,61 @@ local function Decompile(bytecode, options)
     	end
 
     	if options.FormatCode then
-    		local function formatLuaCode(code)
-		    	code = code:gsub("\r\n", "\n") -- Normalize
-	    		code = code:gsub("\n%s+\n", "\n")
-	    		code = code:gsub("[ \t]+$", "")
-	    		return code
+            local function beautifyDecompiledCode(code, options)
+            	local lines = {}
+            	local indentLevel = 0
+	            local indentString = "    "
+
+            	local function trim(s)
+    		return s:match("^%s*(.-)%s*$")
+    	end
+
+    	for rawLine in code:gmatch("[^\r\n]+") do
+    		local line = trim(rawLine)
+
+    		if line:match("^%.%.%.%s*=") then
+	    		goto continue
 	    	end
 
-	    	result = formatLuaCode(result)
+    		if line:match("^[%-%s]*end$") or line:match("^[%-%s]*else") or line:match("^[%-%s]*elseif") or line:match("^[%-%s]*until") then
+	    		indentLevel = indentLevel - 1
+    		end
+
+    		if line:match("^function") or line:match("^local function") then
+    			table.insert(lines, "")
+    		end
+
+    		table.insert(lines, string.rep(indentString, indentLevel) .. line)
+
+    		if line:match(" then$") or line:match(" do$") or line:match("^function ") or line:match("^local function") or line:match("^for ") or line:match("^while ") or line:match("^repeat") then
+    			indentLevel = indentLevel + 1
+    		end
+
+    		::continue::
+    	end
+
+    	local final = {}
+    	local lastEmpty = false
+    	for _, l in ipairs(lines) do
+    		if l == "" then
+    			if not lastEmpty then
+	    			table.insert(final, l)
+	    			lastEmpty = true
+	    		end
+    		else
+	    		table.insert(final, l)
+	    		lastEmpty = false
+	    	end
+    	end
+
+    	return table.concat(final, "\n")
+    end
+
+	    	result = beautifyDecompiledCode(result, options)
     	end
 
     	return embed .. result
-    end
+    end    
 
 		-- now proceed based off mode
 		if options.DecompilerMode == "disasm" then -- disassembler
