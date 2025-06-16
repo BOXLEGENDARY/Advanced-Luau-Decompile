@@ -1,7 +1,6 @@
 -- Collection of strings later formatted by the decompiler for output
 local MemeStrings = {
-	"Beta Release By ZxL - Expect Bugs",
-	"Upgrade By ZxL",
+	" Beta Release By ZxL",
 	" " .. os.date(),
 }
 
