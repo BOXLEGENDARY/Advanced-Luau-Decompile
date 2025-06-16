@@ -1,82 +1,67 @@
 --!optimize 2
---!nolint UnknownGlobal
 
-local ENABLED_REMARKS = {
-	COLD_REMARK = false,
-	INLINE_REMARK = true -- currently unused
+local DEFAULT_OPTIONS = {
+	EnabledRemarks = {
+		ColdRemark = false,
+		InlineRemark = true -- currently unused
+	},
+	DecompilerTimeout = 10, -- seconds
+	DecompilerMode = "disasm", -- optdec/disasm
+	ReaderFloatPrecision = 7, -- up to 99
+	ShowDebugInformation = false, -- show trivial function and array allocation details
+	ShowInstructionLines = false, -- show lines as they are in the source code
+	ShowOperationIndex = false, -- show instruction index. used in jumps #n.
+	ShowOperationNames = false,
+	ShowTrivialOperations = false,
+	UseTypeInfo = false, -- allow adding types to function parameters (ex. p1: string, p2: number)
+	ListUsedGlobals = false, -- list all (non-Roblox!!) globals used in the script as a top comment
+	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
 }
-local DECOMPILER_TIMEOUT = 10 -- seconds
-local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "disasm" -- disasm/optdec
-local SHOW_DEBUG_INFORMATION = false -- show trivial function and array allocation details
-local SHOW_INSTRUCTION_LINES = false -- show lines as they are in the source code
-local SHOW_OPERATION_NAMES = false
-local SHOW_OPERATION_INDEX = false -- show instruction index. used in jumps #n.
-local SHOW_TRIVIAL_OPERATIONS = false
-local USE_TYPE_INFO = false -- allow adding types to function parameters (ex. p1: string, p2: number)
-local LIST_USED_GLOBALS = false -- list all (non-Roblox!!) globals used in the script as a top comment
-local RETURN_ELAPSED_TIME = true -- return time it took to finish processing the bytecode
-local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
-local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 
--- For studio, put your bytecode here.
-local input = ``
+local function LoadFromUrl(moduleName)
+	local BASE_USER = "BOXLEGENDARY"
+	local BASE_BRANCH = "main"
+	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-local LoadFromUrl
+	warn(string.format("[INFO] Loading module '%s'...", moduleName))
 
-if USE_IN_STUDIO then
-	LoadFromUrl = function(moduleName)
-		local success, result = pcall(function()
-			return require(workspace:FindFirstChild("Disassembler"):FindFirstChild(moduleName))
-		end)
-		if not success then
-			error("[ERROR] Failed to require module from Studio: " .. tostring(result))
-		end
-		return result
+	local loadSuccess, loadResult = pcall(function()
+		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+		return game:HttpGet(formattedUrl, true)
+	end)
+
+	if not loadSuccess then
+		error(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", moduleName, tostring(loadResult)))
 	end
-else
-	LoadFromUrl = function(moduleName)
-		local BASE_USER = "BOXLEGENDARY"
-		local BASE_BRANCH = "main"
-		local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-		warn(string.format("[INFO] Loading module '%s'...", moduleName))
+	local success, result = pcall(loadstring, loadResult)
+	if not success then
+		error(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", moduleName, tostring(result)))
+	end
 
-		local loadSuccess, loadResult = pcall(function()
-			local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-			return game:HttpGet(formattedUrl, true)
-		end)
+	print(string.format("[DEBUG] loadstring returned type for module '%s': %s", moduleName, type(result)))
 
-		if not loadSuccess then
-			error(string.format("[ERROR] Failed to load module '%s'. Reason: %s", moduleName, tostring(loadResult)))
+	local resultType = type(result)
+	if resultType ~= "function" and resultType ~= "table" then
+		error(string.format("[ERROR] Module '%s' did not return a function or table as expected. Got type: %s", moduleName, resultType))
+	end
+
+	warn(string.format("[INFO] Module '%s' loaded successfully. Returned type: %s", moduleName, resultType))
+
+	if resultType == "function" then
+		local ok, ret = pcall(result)
+		if not ok then
+			error(string.format("[ERROR] Running module '%s' function returned runtime error: %s", moduleName, tostring(ret)))
 		end
-
-		local compileSuccess, compiled = pcall(loadstring, loadResult)
-		if not compileSuccess then
-			error(string.format("[ERROR] Compilation failed for module '%s': %s", moduleName, tostring(compiled)))
-		end
-
-		local resultType = type(compiled)
-		if resultType ~= "function" and resultType ~= "table" then
-			error(string.format("[ERROR] Module '%s' must return function or table. Got: %s", moduleName, resultType))
-		end
-
-		if resultType == "function" then
-			local ok, result = pcall(compiled)
-			if not ok then
-				error(string.format("[ERROR] Runtime error in module '%s': %s", moduleName, tostring(result)))
-			end
-			return result
-		end
-
-		return compiled
+		return ret
+	else
+		return result
 	end
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
 local Strings = LoadFromUrl("Strings")
 local Luau = LoadFromUrl("Luau")
-local Base64 = LoadFromUrl("Base64")
 
 local function LoadFlag(name)
 	local success, result = pcall(function()
@@ -105,10 +90,10 @@ local padLeft = Implementations.padLeft
 local padRight = Implementations.padRight
 local isGlobal = Implementations.isGlobal
 
-Reader:Set(READER_FLOAT_PRECISION)
-
-local function Decompile(bytecode)
+local function Decompile(bytecode, options)
 	local bytecodeVersion, typeEncodingVersion
+
+	Reader:Set(options.ReaderFloatPrecision)
 
 	local reader = Reader.new(bytecode)
 
@@ -386,28 +371,35 @@ local function Decompile(bytecode)
 						-- help please. if you understand
 						local byte = reader:nextSignedByte()
 
-						-- line numbers unexpectedly dropped/increased by 255 (or 256?) because i set delta to just lastOffset + byte
-						-- the solution: (lastOffset + byte) & 0xFF.
-						-- shoutout to https://github.com/ActualMasterOogway/Iridium/ for finding this fix
-						local delta = bit32.band(lastOffset + byte, 0xFF)
-						smallLineInfo[i] = delta
+						local offsetChange = lastOffset + byte
+						smallLineInfo[i] = offsetChange
 
-						lastOffset = delta
+						lastOffset = offsetChange
 					end
 
 					for i = 1, baselineSize do
 						-- if we read unsigned int32 here we're doomed!!!!!! for eternity!!!!!!!!!
 						local largeLineChange = lastLine + reader:nextInt32()
-						absLineInfo[i] = largeLineChange
+						absLineInfo[i - 1] = largeLineChange
 
 						lastLine = largeLineChange
 					end
 
 					for i, line in smallLineInfo do
-						local absIndex = bit32.rshift(i - 1, lineGapLog2) + 1
+						local absIndex = bit32.rshift(i - 1, lineGapLog2)
 
 						local absLine = absLineInfo[absIndex]
 						local resultLine = line + absLine
+
+						if lineGapLog2 <= 1 and (-line == absLine) then
+							-- this just seems to happen
+							resultLine += absLineInfo[absIndex + 1]
+						end
+
+						-- function inlining ruins everything
+						if resultLine <= 0 then
+							resultLine += 0x100
+						end
 
 						resultLineInfo[i] = resultLine
 					end
@@ -542,13 +534,13 @@ local function Decompile(bytecode)
 					-- what we are dealing with here is mainFlags
 					-- refer to: https://github.com/luau-lang/luau/blob/0.655/Compiler/src/Compiler.cpp#L4188
 
-					--decodedFlags.native = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_MODULE))
+					decodedFlags.native = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_MODULE))
 				else
 					-- normal protoFlags
 					-- refer to: https://github.com/luau-lang/luau/blob/0.655/Compiler/src/Compiler.cpp#L287
 
-					--decodedFlags.native = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_FUNCTION))
-					--decodedFlags.cold = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_COLD))
+					decodedFlags.native = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_FUNCTION))
+					decodedFlags.cold = toBoolean(bit32.band(flags, LuauProtoFlag.LPF_NATIVE_COLD))
 				end
 
 				-- update flags entry
@@ -633,7 +625,7 @@ local function Decompile(bytecode)
 					-- rather than name, but it would be suffering to code and read
 					if opCodeName == "NOP" or opCodeName == "BREAK" or opCodeName == "NATIVECALL" then
 						-- empty action for these
-						registerAction(nil, nil, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction(nil, nil, not options.ShowTrivialOperations)
 					elseif opCodeName == "LOADNIL" then
 						registerAction({A})
 					elseif opCodeName == "LOADB" then -- load boolean
@@ -650,7 +642,7 @@ local function Decompile(bytecode)
 					elseif opCodeName == "GETUPVAL" or opCodeName == "SETUPVAL" then
 						registerAction({A}, {B})
 					elseif opCodeName == "CLOSEUPVALS" then
-						registerAction({A}, nil, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({A}, nil, not options.ShowTrivialOperations)
 					elseif opCodeName == "GETIMPORT" then
 						registerAction({A}, {D, aux})
 					elseif opCodeName == "GETTABLE" or opCodeName == "SETTABLE" then
@@ -672,7 +664,7 @@ local function Decompile(bytecode)
 						collectCaptures(index, proto)
 						baseProto(proto)
 					elseif opCodeName == "NAMECALL" then -- must be followed by CALL
-						registerAction({A, B}, {C, aux}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({A, B}, {C, aux}, not options.ShowTrivialOperations)
 					elseif opCodeName == "CALL" then
 						registerAction({A}, {B, C})
 					elseif opCodeName == "RETURN" then
@@ -750,13 +742,13 @@ local function Decompile(bytecode)
 							registerAction({A}, {B})
 						end
 					elseif opCodeName == "PREPVARARGS" then
-						registerAction({}, {A}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({}, {A}, not options.ShowTrivialOperations)
 					elseif opCodeName == "LOADKX" then
 						registerAction({A}, {aux})
 					elseif opCodeName == "JUMPX" then
 						registerAction({}, {E})
 					elseif opCodeName == "COVERAGE" then
-						registerAction({}, {E}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({}, {E}, not options.ShowTrivialOperations)
 					elseif
 						opCodeName == "JUMPXEQKNIL" or opCodeName == "JUMPXEQKB" or
 						opCodeName == "JUMPXEQKN" or opCodeName == "JUMPXEQKS"
@@ -764,7 +756,7 @@ local function Decompile(bytecode)
 						registerAction({A}, {sD, aux})
 					elseif opCodeName == "CAPTURE" then
 						-- empty action here
-						registerAction(nil, nil, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction(nil, nil, not options.ShowTrivialOperations)
 					elseif opCodeName == "SUBRK" or opCodeName == "DIVRK" then -- constant sub/div
 						registerAction({A, C}, {B})
 					elseif opCodeName == "IDIV" then -- floor division
@@ -772,20 +764,20 @@ local function Decompile(bytecode)
 					elseif opCodeName == "IDIVK" then -- floor division with 1 constant argument
 						registerAction({A, B}, {C})
 					elseif opCodeName == "FASTCALL" then -- reads info from the CALL instruction
-						registerAction({}, {A, C}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({}, {A, C}, not options.ShowTrivialOperations)
 					elseif opCodeName == "FASTCALL1" then -- 1 register argument
-						registerAction({B}, {A, C}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({B}, {A, C}, not options.ShowTrivialOperations)
 					elseif opCodeName == "FASTCALL2" then -- 2 register arguments
 						local sourceArgumentRegister2 = bit32.band(aux, 0xFF)
 
-						registerAction({B, sourceArgumentRegister2}, {A, C}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({B, sourceArgumentRegister2}, {A, C}, not options.ShowTrivialOperations)
 					elseif opCodeName == "FASTCALL2K" then -- 1 register argument and 1 constant argument
-						registerAction({B}, {A, C, aux}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({B}, {A, C, aux}, not options.ShowTrivialOperations)
 					elseif opCodeName == "FASTCALL3" then
 						local sourceArgumentRegister2 = bit32.band(aux, 0xFF)
 						local sourceArgumentRegister3 = bit32.rshift(sourceArgumentRegister2, 8)
 
-						registerAction({B, sourceArgumentRegister2, sourceArgumentRegister3}, {A, C}, not SHOW_TRIVIAL_OPERATIONS)
+						registerAction({B, sourceArgumentRegister2, sourceArgumentRegister3}, {A, C}, not options.ShowTrivialOperations)
 					end
 				end
 			end
@@ -814,7 +806,7 @@ local function Decompile(bytecode)
 		local function processResult(result)
 			local embed = ""
 
-			if LIST_USED_GLOBALS and #usedGlobals > 0 then
+			if options.ListUsedGlobals and #usedGlobals > 0 then
 				embed ..= string.format(Strings.USED_GLOBALS, table.concat(usedGlobals, ", "))
 			end
 
@@ -822,7 +814,7 @@ local function Decompile(bytecode)
 		end
 
 		-- now proceed based off mode
-		if DECOMPILER_MODE == "disasm" then -- disassembler
+		if options.DecompilerMode == "disasm" then -- disassembler
 			local result = ""
 
 			local function writeActions(protoActions)
@@ -836,8 +828,6 @@ local function Decompile(bytecode)
 				local flags = proto.flags
 
 				local numParams = proto.numParams
-
-				SHOW_INSTRUCTION_LINES = SHOW_INSTRUCTION_LINES and #instructionLineInfo > 0
 
 				-- for proper `goto` handling
 				local jumpMarkers = {}
@@ -893,21 +883,21 @@ local function Decompile(bytecode)
 
 					local function writeHeader()
 						local index
-						if SHOW_OPERATION_INDEX then
+						if options.ShowOperationIndex then
 							index = "[".. padLeft(i, "0", 3) .."]"
 						else
 							index = ""
 						end
 
 						local name
-						if SHOW_OPERATION_NAMES then
+						if options.ShowOperationNames then
 							name = padRight(opCodeName, " ", 15)
 						else
 							name = ""
 						end
 
 						local line
-						if SHOW_INSTRUCTION_LINES then
+						if options.ShowInstructionLines then
 							line = ":".. padLeft(instructionLineInfo[i], "0", 3) ..":"
 						else
 							line = ""
@@ -934,7 +924,7 @@ local function Decompile(bytecode)
 							local name = proto.name
 							local numParams = proto.numParams
 							local isVarArg = proto.isVarArg
-							local isTyped = proto.hasTypeInfo and USE_TYPE_INFO
+							local isTyped = proto.hasTypeInfo and options.UseTypeInfo
 							local flags = proto.flags
 							local typedParams = proto.typedParams
 
@@ -942,7 +932,7 @@ local function Decompile(bytecode)
 
 							-- attribute support
 							if flags.native then
-								if flags.cold and ENABLED_REMARKS.COLD_REMARK then
+								if flags.cold and options.EnabledRemarks.ColdRemark then
 									-- function is marked cold and is deemed not profitable to compile natively
 									-- refer to: https://github.com/luau-lang/luau/blob/0.655/Compiler/src/Compiler.cpp#L285
 									protoBody ..= string.format(Strings.DECOMPILER_REMARK, "This function is marked cold and is not compiled natively")
@@ -990,7 +980,7 @@ local function Decompile(bytecode)
 							protoBody ..= ")\n"
 
 							-- additional debug information
-							if SHOW_DEBUG_INFORMATION then
+							if options.ShowDebugInformation then
 								protoBody ..= "-- proto pool id: ".. proto.id .. "\n"
 								protoBody ..= "-- num upvalues: ".. proto.numUpvalues .. "\n"
 								protoBody ..= "-- num inner protos: ".. proto.sizeInnerProtos .. "\n"
@@ -1009,7 +999,7 @@ local function Decompile(bytecode)
 								return k.value
 							else
 								if type(tonumber(k.value)) == "number" then
-									return tonumber(string.format(`%0.{READER_FLOAT_PRECISION}f`, k.value))
+									return tonumber(string.format(`%0.{options.ReaderFloatPrecision}f`, k.value))
 								else
 									return toEscapedString(k.value)
 								end
@@ -1070,7 +1060,7 @@ local function Decompile(bytecode)
 							-- formatConstantValue uses toEscapedString which we don't want here
 							local globalKey = tostring(constants[extraData[1] + 1].value)
 
-							if LIST_USED_GLOBALS and isValidGlobal(globalKey) then
+							if options.ListUsedGlobals and isValidGlobal(globalKey) then
 								table.insert(usedGlobals, globalKey)
 							end
 
@@ -1080,7 +1070,7 @@ local function Decompile(bytecode)
 
 							local globalKey = tostring(constants[extraData[1] + 1].value)
 
-							if LIST_USED_GLOBALS and isValidGlobal(globalKey) then
+							if options.ListUsedGlobals and isValidGlobal(globalKey) then
 								table.insert(usedGlobals, globalKey)
 							end
 
@@ -1112,7 +1102,7 @@ local function Decompile(bytecode)
 
 							local totalIndices = bit32.rshift(importIndices, 30)
 							if totalIndices == 1 then
-								if LIST_USED_GLOBALS and isValidGlobal(import) then
+								if options.ListUsedGlobals and isValidGlobal(import) then
 									-- it is a non-Roblox global that we need to log
 									table.insert(usedGlobals, import)
 								end
@@ -1476,14 +1466,14 @@ local function Decompile(bytecode)
 
 							local value = formatConstantValue(constants[extraData[1] + 1])
 
-							result ..= formatRegister(targetRegister) .." = ".. formatRegister(sourceRegister) .." and ".. value
+							result ..= formatRegister(targetRegister) .." = ".. formatRegister(leftRegister) .." and ".. value
 						elseif opCodeName == "ORK" then
 							local targetRegister = usedRegisters[1]
 							local sourceRegister = usedRegisters[2]
 
 							local value = formatConstantValue(constants[extraData[1] + 1])
 
-							result ..= formatRegister(targetRegister) .." = ".. formatRegister(sourceRegister) .." or ".. value
+							result ..= formatRegister(targetRegister) .." = ".. formatRegister(leftRegister) .." or ".. value
 						elseif opCodeName == "CONCAT" then
 							local targetRegister = table.remove(usedRegisters, 1)
 
@@ -1522,7 +1512,7 @@ local function Decompile(bytecode)
 
 							result ..= formatRegister(targetRegister) .." = {}"
 
-							if SHOW_DEBUG_INFORMATION and arraySize > 0 then
+							if options.ShowDebugInformation and arraySize > 0 then
 								result ..= " --[[".. arraySize .." preallocated indexes]]"
 							end
 						elseif opCodeName == "DUPTABLE" then
@@ -1818,8 +1808,6 @@ local function Decompile(bytecode)
 							local sourceArgumentRegister2 = usedRegisters[2]
 							local sourceArgumentRegister3 = usedRegisters[3]
 
-							local bfid = extraData[1] -- builtin function id
-
 							result ..= "-- FASTCALL3; ".. Luau:GetBuiltinInfo(bfid) .."(".. formatRegister(sourceArgumentRegister) ..", ".. formatRegister(sourceArgumentRegister2) ..", ".. formatRegister(sourceArgumentRegister3) ..")"
 						end
 					end
@@ -1866,19 +1854,15 @@ local function Decompile(bytecode)
 			task.spawn(process)
 
 			-- I wish we could use coroutine.yield here
-			while not result and (os.clock() - startTime) < DECOMPILER_TIMEOUT do
+			while not result and (os.clock() - startTime) < options.DecompilerTimeout do
 				task.wait()
 			end
 
-			if not result then
-				return Strings.TIMEOUT
+			if result then
+				return string.format(Strings.SUCCESS, result), elapsedTime
 			end
 
-			if RETURN_ELAPSED_TIME then
-				return string.format(Strings.SUCCESS, result), elapsedTime
-			else
-				return string.format(Strings.SUCCESS, result)
-			end
+			return Strings.TIMEOUT
 		else
 			if issue == "COMPILATION_FAILURE" then
 				local errorMessageLength = reader:len() - 1
@@ -1895,7 +1879,7 @@ local function Decompile(bytecode)
 	if bytecodeVersion == 0 then
 		-- script errored
 		return manager(false, "COMPILATION_FAILURE")
-	elseif bytecodeVersion >= LuauBytecodeTag.LBC_VERSION_MIN and bytecodeVersion <= LuauBytecodeTag.LBC_VERSION_MAX then
+	elseif bytecodeVersion <= LuauBytecodeTag.LBC_VERSION_MAX and bytecodeVersion >= LuauBytecodeTag.LBC_VERSION_MIN then
 		-- script uses supported bytecode version
 		return manager(true)
 	else
@@ -1903,65 +1887,69 @@ local function Decompile(bytecode)
 	end
 end
 
-if not USE_IN_STUDIO then
-	local _ENV = (getgenv or getrenv or getfenv)()
-	_ENV.decompile = function(script)
-		if not getscriptbytecode then
-			error("Your tool is missing the function 'getscriptbytecode'")
-			return
-		end
-		
-		if typeof(script) ~= "Instance" then
-			error("Invalid argument in parameter #1 'script'. Expected Instance, got " .. typeof(script))
-		end
-		
-		local function isScriptValid()
-			if script.ClassName == "Script" then
-				return script.RunContext == Enum.RunContext.Client
-			elseif script.ClassName == "LocalScript" 
-				or script.ClassName == "ModuleScript" then
-				return true
-			end
-		end
-		
-		local success, result = pcall(getscriptbytecode, script)
-		if not success or type(result) ~= "string" then
-			error(`Couldn't decompile bytecode: {tostring(result)}`, 2)
-			return
-		end
-		
-		local decomped, elapsedTime
-		
-		if DECODE_AS_BASE64 then
-			local toDecode = buffer.fromstring(result)
-			local decoded = Base64.decode(toDecode)
-			decomped, elapsedTime = Decompile(result)
+local _ENV = (getgenv or getrenv or getfenv)()
+_ENV.decompile = function(script, x, ...)
+	if not getscriptbytecode then
+		error("decompile is not enabled. (getscriptbytecode is missing)", 2)
+		return
+	end
+
+	if typeof(script) ~= "Instance" then
+		error("invalid argument #1 to 'decompile' (Instance expected)", 2)
+		return
+	end
+
+	local function isScriptValid()
+		local class = script.ClassName
+		if class == "Script" then
+			return script.RunContext == Enum.RunContext.Client
 		else
-			decomped, elapsedTime = Decompile(result)
-		end
-		
-		if RETURN_ELAPSED_TIME then
-			return decomped, elapsedTime
-		else
-			return decomped
+			return class == "LocalScript" or class == "ModuleScript"
 		end
 	end
-else
-	if DECODE_AS_BASE64 then
-		local toDecode = buffer.fromstring(input)
-		local decoded = Base64.decode(toDecode)
-		local decomped, elapsedTime = Decompile(buffer.tostring(decoded))
-		warn("done decompiling:", elapsedTime or 0)
-		
-		game:GetService("ScriptEditorService"):UpdateSourceAsync(workspace["Disassembler"].LocalScript, function()
-			return decomped
-		end)
+	if not isScriptValid() then
+		error("invalid argument #1 to 'decompile' (Instance<LocalScript, ModuleScript> expected)", 2)
+		return
+	end
+
+	local success, result = pcall(getscriptbytecode, script)
+	if not success or type(result) ~= "string" then
+		error(`decompile failed to grab script bytecode: {tostring(result)}`, 2)
+		return
+	end
+
+	local options
+	if x then
+		options = table.clone(DEFAULT_OPTIONS)
+
+		local varType = type(x)
+		if varType == "table" then -- a dictionary of options
+			for k, v in x do
+				options[k] = v
+			end
+		elseif varType == "string" then -- mode
+			options.DecompilerMode = x
+
+			local timeout = ...
+			if timeout then
+				if type(timeout) ~= "number" then
+					error("invalid argument #3 to 'decompile' (number expected)", 2)
+				end
+
+				options.DecompilerTimeout = timeout
+			end
+		else
+			error("invalid argument #2 to 'decompile' (table/string expected)", 2)
+		end
 	else
-		local decomped, elapsedTime = Decompile(input)
-		warn("done decompiling:", elapsedTime or 0)
-		
-		game:GetService("ScriptEditorService"):UpdateSourceAsync(workspace["Disassembler"].LocalScript, function()
-			return decomped
-		end)
+		options = DEFAULT_OPTIONS
+	end
+
+	local output, elapsedTime = Decompile(result, options)
+
+	if options.ReturnElapsedTime then
+		return output, elapsedTime
+	else
+		return output
 	end
 end
