@@ -25,51 +25,52 @@ local input = ``
 local LoadFromUrl
 
 if USE_IN_STUDIO then
-	-- A bit of an annoying thing, but I don't want 2 separate names for this
 	LoadFromUrl = function(moduleName)
-		return require(workspace["Disassembler"][moduleName])
+		local success, result = pcall(function()
+			return require(workspace:FindFirstChild("Disassembler"):FindFirstChild(moduleName))
+		end)
+		if not success then
+			error("[ERROR] Failed to require module from Studio: " .. tostring(result))
+		end
+		return result
 	end
 else
-	LoadFromUrl = function(x)
-    	local BASE_USER = "BOXLEGENDARY"
-    	local BASE_BRANCH = "main"
-    	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+	LoadFromUrl = function(moduleName)
+		local BASE_USER = "BOXLEGENDARY"
+		local BASE_BRANCH = "main"
+		local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-    	warn(string.format("[INFO] Loading module '%s'...", x))
+		warn(string.format("[INFO] Loading module '%s'...", moduleName))
 
-    	local loadSuccess, loadResult = pcall(function()
-    		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
-    		return game:HttpGet(formattedUrl, true)
-    	end)
+		local loadSuccess, loadResult = pcall(function()
+			local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+			return game:HttpGet(formattedUrl, true)
+		end)
 
-    	if not loadSuccess then
-    		error(string.format("[ERROR] Failed to load module '%s' from remote source. Reason: %s", x, tostring(loadResult)))
-    	end
+		if not loadSuccess then
+			error(string.format("[ERROR] Failed to load module '%s'. Reason: %s", moduleName, tostring(loadResult)))
+		end
 
-    	local success, result = pcall(loadstring, loadResult)
-    	if not success then
-    		error(string.format("[ERROR] Failed to compile module '%s'. Syntax or runtime error: %s", x, tostring(result)))
-    	end
+		local compileSuccess, compiled = pcall(loadstring, loadResult)
+		if not compileSuccess then
+			error(string.format("[ERROR] Compilation failed for module '%s': %s", moduleName, tostring(compiled)))
+		end
 
-    	print(string.format("[DEBUG] loadstring returned type for module '%s': %s", x, type(result)))
+		local resultType = type(compiled)
+		if resultType ~= "function" and resultType ~= "table" then
+			error(string.format("[ERROR] Module '%s' must return function or table. Got: %s", moduleName, resultType))
+		end
 
-    	local resultType = type(result)
-    	if resultType ~= "function" and resultType ~= "table" then
-	    	error(string.format("[ERROR] Module '%s' did not return a function or table as expected. Got type: %s", x, resultType))
-    	end
+		if resultType == "function" then
+			local ok, result = pcall(compiled)
+			if not ok then
+				error(string.format("[ERROR] Runtime error in module '%s': %s", moduleName, tostring(result)))
+			end
+			return result
+		end
 
-    	warn(string.format("[INFO] Module '%s' loaded successfully. Returned type: %s", x, resultType))
-
-    	if resultType == "function" then
-    		local ok, ret = pcall(result)
-    		if not ok then
-    			error(string.format("[ERROR] Running module '%s' function returned runtime error: %s", x, tostring(ret)))
-    		end
-    		return ret
-    	else
-    		return result
-    	end
-    end
+		return compiled
+	end
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
