@@ -6,15 +6,15 @@ local DEFAULT_OPTIONS = {
 		InlineRemark = true -- currently unused
 	},
 	DecompilerTimeout = 10, -- seconds
-	DecompilerMode = "optdec", -- optdec/disasm
-	ReaderFloatPrecision = 6, -- up to 99
-	ShowDebugInformation = false, -- show trivial function and array allocation details
-	ShowInstructionLines = false, -- show lines as they are in the source code
-	ShowOperationIndex = false, -- show instruction index. used in jumps #n.
-	ShowOperationNames = false,
+	DecompilerMode = "disasm", -- optdec/disasm
+	ReaderFloatPrecision = 7, -- up to 99
+	ShowDebugInformation = true, -- show trivial function and array allocation details
+	ShowInstructionLines = true, -- show lines as they are in the source code
+	ShowOperationIndex = true, -- show instruction index. used in jumps #n.
+	ShowOperationNames = true,
 	ShowTrivialOperations = false,
-	UseTypeInfo = false, -- allow adding types to function parameters (ex. p1: string, p2: number)
-	ListUsedGlobals = false, -- list all (non-Roblox!!) globals used in the script as a top comment
+	UseTypeInfo = true, -- allow adding types to function parameters (ex. p1: string, p2: number)
+	ListUsedGlobals = true, -- list all (non-Roblox!!) globals used in the script as a top comment
 	ReturnElapsedTime = false -- return time it took to finish processing the bytecode
 }
 
