@@ -1889,6 +1889,7 @@ local function Decompile(bytecode, options)
 end
 
 local _ENV = (getgenv or getrenv or getfenv)()
+
 _ENV.decompile = function(script, x, ...)
 	if not getscriptbytecode then
 		error("decompile is not enabled. (getscriptbytecode is missing)", 2)
@@ -1908,6 +1909,7 @@ _ENV.decompile = function(script, x, ...)
 			return class == "LocalScript" or class == "ModuleScript"
 		end
 	end
+
 	if not isScriptValid() then
 		error("invalid argument #1 to 'decompile' (Instance<LocalScript, ModuleScript> expected)", 2)
 		return
@@ -1924,11 +1926,11 @@ _ENV.decompile = function(script, x, ...)
 		options = table.clone(DEFAULT_OPTIONS)
 
 		local varType = type(x)
-		if varType == "table" then -- a dictionary of options
+		if varType == "table" then
 			for k, v in x do
 				options[k] = v
 			end
-		elseif varType == "string" then -- mode
+		elseif varType == "string" then
 			options.DecompilerMode = x
 
 			local timeout = ...
@@ -1946,7 +1948,26 @@ _ENV.decompile = function(script, x, ...)
 		options = DEFAULT_OPTIONS
 	end
 
-	local output, elapsedTime = Decompile(result, options)
+	local bytecode = result
+	if options.DecodeAsBase64 then
+		local toDecode = buffer.fromstring(result)
+		local decoded = Base64.decode(toDecode)
+		bytecode = buffer.tostring(decoded)
+	end
+
+	local output, elapsedTime = Decompile(bytecode, options)
+
+	if options.AutoUpdateSource and script:IsDescendantOf(workspace) and script.ClassName == "LocalScript" then
+		local successUpdate, err = pcall(function()
+			game:GetService("ScriptEditorService"):UpdateSourceAsync(script, function()
+				return output
+			end)
+		end)
+
+		if not successUpdate then
+			warn("UpdateSourceAsync failed:", err)
+		end
+	end
 
 	if options.ReturnElapsedTime then
 		return output, elapsedTime
