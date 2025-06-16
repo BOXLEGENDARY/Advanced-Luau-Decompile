@@ -29,55 +29,96 @@ LoadFromUrl = function(moduleName)
 	local BASE_BRANCH = "main"
 	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
+	local function timestamp()
+		return "[" .. os.date("%H:%M:%S") .. "]"
+	end
+
+	local function log(level, message, ...)
+		local prefix = timestamp() .. " [" .. level .. "] "
+		if select("#", ...) > 0 then
+			print(prefix .. message:format(...))
+		else
+			print(prefix .. message)
+		end
+	end
+
+	local function fatal(message, ...)
+		local fullMsg = timestamp() .. " [FATAL] " .. message:format(...)
+		error(fullMsg, 2)
+	end
+
+	local debugID = tostring(math.random(100000, 999999))
+	log("DEBUG", "LoadFromUrl started (debugID: %s) | moduleName: '%s'", debugID, tostring(moduleName))
+
+	if type(moduleName) ~= "string" or #moduleName == 0 then
+		fatal("Invalid module name: '%s'", tostring(moduleName))
+	end
+
 	if USE_IN_STUDIO then
-		warn(string.format("[INFO] Studio mode detected. Loading module '%s' from workspace...", moduleName))
+		log("INFO", "Studio mode active. Attempting to require from workspace.")
 
 		local success, result = pcall(function()
 			local container = workspace:FindFirstChild("Disassembler")
 			if not container then
-				error("Missing 'Disassembler' container in workspace.")
+				fatal("Missing 'Disassembler' folder in workspace.")
 			end
+
 			local module = container:FindFirstChild(moduleName)
 			if not module then
-				error("Module '" .. moduleName .. "' not found in workspace 'Disassembler'")
+				fatal("Module '%s' not found inside workspace.Disassembler", moduleName)
 			end
+
+			log("DEBUG", "Found module '%s' in workspace. Attempting require...", moduleName)
 			return require(module)
 		end)
 
 		if not success then
-			error("[ERROR] Failed to require module from Studio: " .. tostring(result))
+			fatal("Require failed in Studio mode. Reason: %s", tostring(result))
 		end
 
+		log("SUCCESS", "Module '%s' loaded successfully in Studio (debugID: %s)", moduleName, debugID)
 		return result
 	else
-		warn(string.format("[INFO] Loading module '%s' from remote source...", moduleName))
+		log("INFO", "Remote mode active. Preparing GitHub request...")
+		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+		log("DEBUG", "GitHub URL: %s", formattedUrl)
 
-		local loadSuccess, loadResult = pcall(function()
-			local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+		local httpSuccess, response = pcall(function()
 			return game:HttpGet(formattedUrl, true)
 		end)
 
-		if not loadSuccess then
-			error(string.format("[ERROR] Failed to load module '%s'. Reason: %s", moduleName, tostring(loadResult)))
+		if not httpSuccess then
+			fatal("Failed to fetch from GitHub for module '%s'. Reason: %s", moduleName, tostring(response))
 		end
 
-		local compileSuccess, compiled = pcall(loadstring, loadResult)
+		if type(response) ~= "string" or #response == 0 then
+			fatal("GitHub returned empty or invalid content for module '%s'", moduleName)
+		end
+
+		log("DEBUG", "Module fetched (Size: %d bytes). Attempting to compile...", #response)
+
+		local compileSuccess, compiled = pcall(loadstring, response)
 		if not compileSuccess then
-			error(string.format("[ERROR] Compilation failed for module '%s': %s", moduleName, tostring(compiled)))
+			fatal("Compilation failed for '%s'. Error: %s", moduleName, tostring(compiled))
 		end
 
 		local resultType = type(compiled)
+		log("DEBUG", "loadstring returned: %s", resultType)
+
 		if resultType ~= "function" and resultType ~= "table" then
-			error(string.format("[ERROR] Module '%s' must return function or table. Got: %s", moduleName, resultType))
+			fatal("Module '%s' must return function or table. Got: %s", moduleName, resultType)
 		end
 
 		if resultType == "function" then
-			local ok, result = pcall(compiled)
+			log("DEBUG", "Calling compiled function...")
+			local ok, funcResult = pcall(compiled)
 			if not ok then
-				error(string.format("[ERROR] Runtime error in module '%s': %s", moduleName, tostring(result)))
+				fatal("Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
 			end
-			return result
+			log("SUCCESS", "Module '%s' executed successfully (Function)", moduleName)
+			return funcResult
 		else
+			log("SUCCESS", "Module '%s' returned table directly", moduleName)
 			return compiled
 		end
 	end
