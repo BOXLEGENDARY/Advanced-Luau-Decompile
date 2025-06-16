@@ -18,6 +18,7 @@ local LIST_USED_GLOBALS = false -- list all (non-Roblox!!) globals used in the s
 local RETURN_ELAPSED_TIME = false -- return time it took to finish processing the bytecode
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
+local Debug = true -- true / show all debug loading in console | false / show load and success only
 local GitHubUrlShow = false
 
 -- For studio, put your bytecode here.
@@ -26,108 +27,133 @@ local input = ``
 local LoadFromUrl
 
 LoadFromUrl = function(moduleName)
-	local BASE_USER = "BOXLEGENDARY"
-	local BASE_BRANCH = "main"
-	local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+    local BASE_USER = "BOXLEGENDARY"
+    local BASE_BRANCH = "main"
+    local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
 
-	local function timestamp()
-		return "[" .. os.date("%H:%M:%S") .. "]"
-	end
+    local function timestamp()
+        return "[" .. os.date("%H:%M:%S") .. "]"
+    end
 
-	local function log(level, message, ...)
-		local prefix = timestamp() .. " [" .. level .. "] "
-		local fullMessage = select("#", ...) > 0 and message:format(...) or message
+    local function log(level, message, ...)
+        local prefix = timestamp() .. " [" .. level .. "] "
+        local fullMessage = select("#", ...) > 0 and message:format(...) or message
 
-		if level == "FATAL" then
-			error(prefix .. fullMessage, 2)
-		elseif level == "INFO" or level == "WARN" or level == "SUCCESS" then
-			warn(prefix .. fullMessage)
-		else
-			print(prefix .. fullMessage)
-		end
-	end
+        if not Debug then
+            if level ~= "ERROR" and level ~= "FATAL" and level ~= "SUCCESS" then
+                return
+            end
+        end
 
-	local debugID = tostring(math.random(100000, 999999))
-	log("DEBUG", "LoadFromUrl started (debugID: %s) | moduleName: '%s'", debugID, tostring(moduleName))
+        if level == "FATAL" then
+            error(prefix .. fullMessage, 2)
+        elseif level == "ERROR" or level == "WARN" or level == "INFO" or level == "SUCCESS" then
+            warn(prefix .. fullMessage)
+        else
+            print(prefix .. fullMessage)
+        end
+    end
 
-	if type(moduleName) ~= "string" or #moduleName == 0 then
-		log("FATAL", "Invalid module name: '%s'", tostring(moduleName))
-	end
+    local debugID = tostring(math.random(100000, 999999))
+    log("INFO", "----- LoadFromUrl started (debugID: %s) -----", debugID)
 
-	if USE_IN_STUDIO then
-		log("WARN", "Studio mode active. Attempting to require from workspace...")
+    if type(moduleName) ~= "string" then
+        log("FATAL", "Invalid moduleName type. Expected string but got %s", type(moduleName))
+    elseif #moduleName == 0 then
+        log("FATAL", "Module name is an empty string")
+    else
+        log("INFO", "Module name validated: %s", moduleName)
+    end
 
-		local success, result = pcall(function()
-			local container = workspace:FindFirstChild("Disassembler")
-			if not container then
-				error("Missing 'Disassembler' folder in workspace.")
-			end
+    if USE_IN_STUDIO then
+        log("INFO", "Mode: Studio (Loading from workspace)")
+        local success, result = pcall(function()
+            log("INFO", "Searching for 'Disassembler' folder in workspace...")
+            local container = workspace:FindFirstChild("Disassembler")
+            if not container then
+                log("ERROR", "'Disassembler' folder not found in workspace")
+                error("Missing 'Disassembler' folder in workspace.")
+            else
+                log("INFO", "'Disassembler' folder found")
+            end
 
-			local module = container:FindFirstChild(moduleName)
-			if not module then
-				error("Module '" .. moduleName .. "' not found inside workspace.Disassembler")
-			end
+            log("INFO", "Searching for module '%s' inside 'Disassembler'", moduleName)
+            local module = container:FindFirstChild(moduleName)
+            if not module then
+                log("ERROR", "Module '%s' not found in 'Disassembler'", moduleName)
+                error("Module '" .. moduleName .. "' not found inside workspace.Disassembler")
+            else
+                log("INFO", "Module '%s' found, preparing to require...", moduleName)
+            end
 
-			log("DEBUG", "Found module '%s' in workspace. Attempting require...", moduleName)
-			return require(module)
-		end)
+            local requireResult = require(module)
+            log("INFO", "Require call successful for module '%s'", moduleName)
+            return requireResult
+        end)
 
-		if not success then
-			log("FATAL", "Require failed in Studio mode. Reason: %s", tostring(result))
-		end
+        if not success then
+            log("FATAL", "Failed to load module '%s' in Studio mode. Reason: %s", moduleName, tostring(result))
+        else
+            log("SUCCESS", "Module '%s' loaded successfully in Studio mode (debugID: %s)", moduleName, debugID)
+            return result
+        end
+    else
+        log("INFO", "Mode: Remote (Fetching from GitHub)")
 
-		log("SUCCESS", "Module '%s' loaded successfully in Studio (debugID: %s)", moduleName, debugID)
-		return result
-	else
-		log("WARN", "Remote mode active. Attempting to fetch module...")
+        local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+        log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
 
-		local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+        if GitHubUrlShow then
+            log("DEBUG", "GitHub URL shown: %s", formattedUrl)
+        else
+            log("DEBUG", "GitHub URL hidden due to security setting")
+        end
 
-		if GitHubUrlShow then
-			log("DEBUG", "Fetching module source from GitHub... URL: %s", formattedUrl)
-		else
-			log("DEBUG", "Fetching module source from GitHub... (URL hidden for security)")
-		end
+        local httpSuccess, response = pcall(function()
+            log("INFO", "Attempting HttpGet from URL...")
+            local result = game:HttpGet(formattedUrl, true)
+            log("INFO", "HttpGet succeeded, received %d bytes", #result)
+            return result
+        end)
 
-		local httpSuccess, response = pcall(function()
-			return game:HttpGet(formattedUrl, true)
-		end)
+        if not httpSuccess then
+            log("FATAL", "HttpGet failed for module '%s'. Reason: %s", moduleName, tostring(response))
+        end
 
-		if not httpSuccess then
-			log("FATAL", "Failed to fetch from GitHub for module '%s'. Reason: %s", moduleName, tostring(response))
-		end
+        if type(response) ~= "string" then
+            log("FATAL", "HttpGet response type invalid. Expected string but got %s", type(response))
+        elseif #response == 0 then
+            log("FATAL", "HttpGet response empty for module '%s'", moduleName)
+        else
+            log("INFO", "Response content valid, length: %d bytes", #response)
+        end
 
-		if type(response) ~= "string" or #response == 0 then
-			log("FATAL", "GitHub returned empty or invalid content for module '%s'", moduleName)
-		end
+        log("INFO", "Compiling fetched code for module '%s'", moduleName)
+        local compileSuccess, compiledOrError = pcall(loadstring, response)
+        if not compileSuccess then
+            log("FATAL", "Compilation failed for module '%s'. Error: %s", moduleName, tostring(compiledOrError))
+        end
 
-		log("DEBUG", "Module fetched. Size: %d bytes. Attempting to compile...", #response)
+        local compiledType = type(compiledOrError)
+        log("INFO", "loadstring returned type: %s", compiledType)
 
-		local compileSuccess, compiled = pcall(loadstring, response)
-		if not compileSuccess then
-			log("FATAL", "Compilation failed for '%s'. Error: %s", moduleName, tostring(compiled))
-		end
+        if compiledType ~= "function" and compiledType ~= "table" then
+            log("FATAL", "Invalid module return type. Expected function or table but got %s", compiledType)
+        end
 
-		local resultType = type(compiled)
-		log("DEBUG", "loadstring returned: %s", resultType)
-
-		if resultType ~= "function" and resultType ~= "table" then
-			log("FATAL", "Module '%s' must return function or table. Got: %s", moduleName, resultType)
-		end
-
-		if resultType == "function" then
-			log("DEBUG", "Calling compiled function...")
-			local ok, funcResult = pcall(compiled)
-			if not ok then
-				log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
-			end
-			log("SUCCESS", "Module '%s' executed successfully (Function)", moduleName)
-			return funcResult
-		else
-			log("SUCCESS", "Module '%s' returned table directly", moduleName)
-			return compiled
-		end
-	end
+        if compiledType == "function" then
+            log("INFO", "Calling compiled function for module '%s'", moduleName)
+            local execSuccess, funcResult = pcall(compiledOrError)
+            if not execSuccess then
+                log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
+            end
+            log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
+            return funcResult
+        else
+            log("SUCCESS", "Module '%s' returned table directly", moduleName)
+            return compiledOrError
+        end
+    end
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")

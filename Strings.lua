@@ -1,6 +1,6 @@
 -- Collection of strings later formatted by the decompiler for output
 local MemeStrings = {
-	" Beta Release By ZxL",
+	" Decompline By ZxL",
 }
 
 local Strings = {
