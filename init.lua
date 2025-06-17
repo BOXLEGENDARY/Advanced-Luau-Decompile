@@ -5,7 +5,7 @@ local ENABLED_REMARKS = {
 	COLD_REMARK = false,
 	INLINE_REMARK = false -- currently unused
 }
-local DECOMPILER_TIMEOUT = 10 -- seconds
+local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
 local DECOMPILER_MODE = "disasm" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
