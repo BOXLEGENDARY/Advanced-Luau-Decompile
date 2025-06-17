@@ -1983,8 +1983,10 @@ local function Decompile(bytecode)
 	end
 end
 
+-- message form new dev i didn't touch this i just chnage _ENV if u want old _ENV u can change back
 if not USE_IN_STUDIO then
-	local _ENV = (getgenv or getrenv or getfenv)()
+	local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
+ -- local _ENV = (getgenv or getrenv or getfenv)()
 	_ENV.decompile = function(script)
 		if not getscriptbytecode then
 			error("Your tool is missing the function 'getscriptbytecode'")
