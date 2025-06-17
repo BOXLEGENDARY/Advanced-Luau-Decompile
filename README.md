@@ -1,7 +1,6 @@
 # CREDIT BY W.A.E
 # RELEASE 6/16/25
 # luau decompline for roblox
-# best luau decompline in 2025 ( not better than execute decompline because roblox has limit to make it better )
 
 upgrade form old version 
 
