@@ -20,6 +20,27 @@ local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returne
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 local Debug = true -- true / show all debug loading in console | false / show load and success only
 local GitHubUrlShow = false
+-----------------------------------------------------------------
+-- new funtion for ZDex ( made by break-core )
+-- fact1: i just touch something in script not all ( all decompline i make it better but base64 and init i use from other person )
+-- fact2: i just add Debug and upgrade loading better
+-- rewrite to support exploits
+-- better support for Roblox Studio
+-- Base64 decoding supprot
+-- nice to meet you this is a frist time and last time to update Good Luck Hacker
+-- special thanks w.a.e and break-core
+-------------------------------------------------------------------
+-- break-core message
+-- ################## --
+-- Advanced Decompiler V3
+-- This code is a fork of a rewrite of Advanced Decompiler V3.The actual rewrite code was created by wae (original creator of Advanced Decompiler V3). For exploit support and better studio support, that was created by me.
+-- ################## --
+-- What is this?
+-- This is a disassembler, which takes bytecode and tries to transform it into readable instructions. A particularly useful feature of this is that it can predict what opcodes are used for, so you don't have to be a total rocket scientist to understand what's going on here.
+-- ################## --
+-- How good is this? ( break-core )
+-- Compared to the previous version of Advanced Decompiler V3 (which had several errors), this version has NEVER failed yet on any bytecode and has been tested on massive Roblox scripts such as the latest version of Criminality's GunScript (which is around 5000+ lines long). If you're a reverse engineer, this will be perfect for you!
+-------------------------------------------------------------------
 
 -- For studio, put your bytecode here.
 local input = ``
