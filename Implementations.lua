@@ -1,5 +1,4 @@
 local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
--- local _ENV = (getgenv or getfenv)()
 
 local Implementations = {}
 

@@ -30,17 +30,6 @@ local GitHubUrlShow = false
 -- nice to meet you this is a frist time and last time to update Good Luck Hacker
 -- special thanks w.a.e and break-core
 -------------------------------------------------------------------
--- break-core message
--- ################## --
--- Advanced Decompiler V3
--- This code is a fork of a rewrite of Advanced Decompiler V3.The actual rewrite code was created by wae (original creator of Advanced Decompiler V3). For exploit support and better studio support, that was created by me.
--- ################## --
--- What is this?
--- This is a disassembler, which takes bytecode and tries to transform it into readable instructions. A particularly useful feature of this is that it can predict what opcodes are used for, so you don't have to be a total rocket scientist to understand what's going on here.
--- ################## --
--- How good is this? ( break-core )
--- Compared to the previous version of Advanced Decompiler V3 (which had several errors), this version has NEVER failed yet on any bytecode and has been tested on massive Roblox scripts such as the latest version of Criminality's GunScript (which is around 5000+ lines long). If you're a reverse engineer, this will be perfect for you!
--------------------------------------------------------------------
 
 -- For studio, put your bytecode here.
 local input = ``
@@ -2004,10 +1993,8 @@ local function Decompile(bytecode)
 	end
 end
 
--- message form new dev i didn't touch this i just chnage _ENV if u want old _ENV u can change back
 if not USE_IN_STUDIO then
 	local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
- -- local _ENV = (getgenv or getrenv or getfenv)()
 	_ENV.decompile = function(script)
 		if not getscriptbytecode then
 			error("Your tool is missing the function 'getscriptbytecode'")
