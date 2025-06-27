@@ -39,7 +39,7 @@ local LoadFromUrl
 LoadFromUrl = function(moduleName)
     local BASE_USER = "BOXLEGENDARY"
     local BASE_BRANCH = "main"
-    local BASE_URL = "https://raw.githubusercontent.com/%s/ZDex/%s/%s.lua"
+    local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
 
     local function timestamp()
         return "[" .. os.date("%H:%M:%S") .. "]"
