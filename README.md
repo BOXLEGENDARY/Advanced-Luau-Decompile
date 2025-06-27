@@ -1,4 +1,3 @@
-# MADE BY ZxL
 # CREDIT BY W.A.E
 # RELEASE 6/16/25
 # luau decompline for roblox
