@@ -11,7 +11,7 @@ this is a last version no update anymore 👋
 
 # NOTE
 
-upgrade by sys_$tab group ( not lego hacker )
+uprade by ZxL ( solo dev )
 
 no formatch code saddle 😔
 
