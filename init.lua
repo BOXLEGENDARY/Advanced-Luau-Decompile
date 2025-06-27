@@ -21,7 +21,7 @@ local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this
 local Debug = true -- true / show all debug loading in console | false / show load and success only
 local GitHubUrlShow = false
 -----------------------------------------------------------------
--- new funtion for ZDex ( made by break-core )
+-- new funtion for Dex
 -- fact1: i just touch something in script not all ( all decompline i make it better but base64 and init i use from other person )
 -- fact2: i just add Debug and upgrade loading better
 -- rewrite to support exploits
