@@ -1,4 +1,4 @@
-# CREDIT BY W.A.E
+# CREDIT BY W.A.E & break-core
 # RELEASE 6/16/25
 # luau decompline for roblox
 
