@@ -7,7 +7,7 @@ local ENABLED_REMARKS = {
 }
 local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "disasm" -- disasm/optdec
+local DECOMPILER_MODE = "optdec" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
 local SHOW_INSTRUCTION_LINES = true -- show lines as they are in the source code
 local SHOW_OPERATION_NAMES = true
@@ -1891,19 +1891,54 @@ local function Decompile(bytecode)
 			writeActions(registerActions[mainProtoId])
 
 			finalResult = processResult(result)
-		else -- assume optdec - optimized decompiler
-			local result = ""
-			-- remove temporary registers and some optimization passes
-			local function optimize(code)
-				result = code
-			end
-			optimize("-- one day..")
+        else -- assume optdec - optimized decompiler
+        	local function optimize(protoTable)
+       	 	local output = {}
+	        	local indent = "    "
 
-			finalResult = processResult(result)
-		end
+        		local function getProtoCode(proto)
+	        		local lines = {}
 
-		return finalResult
-	end
+		        	-- Generate function name and params
+	        		local name = proto.name or "func_" .. tostring(proto.id)
+	        		local params = {}
+	        		for i = 1, proto.numParams do
+	        			table.insert(params, "p" .. i)
+		        	end
+		        	if proto.isVarArg then
+		        		table.insert(params, "...")
+		        	end
+
+			        table.insert(lines, string.format("local function %s(%s)", name, table.concat(params, ", ")))
+
+		        	-- Instructions (placeholder as comments)
+		        	for i, instr in ipairs(proto.instructions) do
+		        		table.insert(lines, indent .. "-- instr[" .. i .. "] = 0x" .. string.format("%08X", instr))
+		        	end
+
+		        	-- Constants
+		        	if #proto.constants > 0 then
+		        		table.insert(lines, indent .. "-- Constants:")
+		        		for i, const in ipairs(proto.constants) do
+		        			local val = type(const.value) == "string" and '"' .. const.value .. '"' or tostring(const.value)
+				        	table.insert(lines, indent .. "--   [" .. i .. "] = " .. val)
+			        	end
+	        		end
+
+	        		table.insert(lines, "end")
+			        return table.concat(lines, "\n")
+	        	end
+
+		        for _, proto in pairs(protoTable) do
+	        		table.insert(output, getProtoCode(proto))
+        		end
+
+	        	return table.concat(output, "\n\n")
+        	end
+
+        	local formattedCode = optimize(protoTable)
+        	finalResult = processResult(formattedCode)
+        end
 
 	local function manager(proceed, issue)
 		if proceed then
