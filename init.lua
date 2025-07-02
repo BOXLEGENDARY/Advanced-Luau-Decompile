@@ -75,91 +75,55 @@ LoadFromUrl = function(moduleName)
         log("INFO", "Module name validated: %s", moduleName)
     end
 
-    if USE_IN_STUDIO then
-        log("INFO", "Mode: Studio (Loading from workspace)")
-        local success, result = pcall(function()
-            log("INFO", "Searching for 'Disassembler' folder in workspace...")
-            local container = workspace:FindFirstChild("Disassembler")
-            if not container then
-                log("ERROR", "'Disassembler' folder not found in workspace")
-                error("Missing 'Disassembler' folder in workspace.")
-            else
-                log("INFO", "'Disassembler' folder found")
-            end
+    local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
+    
+    if GitHubUrlShow then
+        log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
+    end
 
-            log("INFO", "Searching for module '%s' inside 'Disassembler'", moduleName)
-            local module = container:FindFirstChild(moduleName)
-            if not module then
-                log("ERROR", "Module '%s' not found in 'Disassembler'", moduleName)
-                error("Module '" .. moduleName .. "' not found inside workspace.Disassembler")
-            else
-                log("INFO", "Module '%s' found, preparing to require...", moduleName)
-            end
+    local httpSuccess, response = pcall(function()
+        log("INFO", "Attempting HttpGet from URL...")
+        local result = game:HttpGet(formattedUrl, true)
+        log("INFO", "HttpGet succeeded, received %d bytes", #result)
+        return result
+    end)
 
-            local requireResult = require(module)
-            log("INFO", "Require call successful for module '%s'", moduleName)
-            return requireResult
-        end)
+    if not httpSuccess then
+        log("FATAL", "HttpGet failed for module '%s'. Reason: %s", moduleName, tostring(response))
+    end
 
-        if not success then
-            log("FATAL", "Failed to load module '%s' in Studio mode. Reason: %s", moduleName, tostring(result))
-        else
-            log("SUCCESS", "Module '%s' loaded successfully in Studio mode (debugID: %s)", moduleName, debugID)
-            return result
-        end
+    if type(response) ~= "string" then
+        log("FATAL", "HttpGet response type invalid. Expected string but got %s", type(response))
+    elseif #response == 0 then
+        log("FATAL", "HttpGet response empty for module '%s'", moduleName)
     else
-        log("INFO", "Mode: Remote (Fetching from GitHub)")
+        log("INFO", "Response content valid, length: %d bytes", #response)
+    end
 
-        local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-        
-        if GitHubUrlShow then
-            log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
+    log("INFO", "Compiling fetched code for module '%s'", moduleName)
+    local compileSuccess, compiledOrError = pcall(loadstring, response)
+    if not compileSuccess then
+        log("FATAL", "Compilation failed for module '%s'. Error: %s", moduleName, tostring(compiledOrError))
+    end
+
+    local compiledType = type(compiledOrError)
+    log("INFO", "loadstring returned type: %s", compiledType)
+
+    if compiledType ~= "function" and compiledType ~= "table" then
+        log("FATAL", "Invalid module return type. Expected function or table but got %s", compiledType)
+    end
+
+    if compiledType == "function" then
+        log("INFO", "Calling compiled function for module '%s'", moduleName)
+        local execSuccess, funcResult = pcall(compiledOrError)
+        if not execSuccess then
+            log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
         end
-
-        local httpSuccess, response = pcall(function()
-            log("INFO", "Attempting HttpGet from URL...")
-            local result = game:HttpGet(formattedUrl, true)
-            log("INFO", "HttpGet succeeded, received %d bytes", #result)
-            return result
-        end)
-
-        if not httpSuccess then
-            log("FATAL", "HttpGet failed for module '%s'. Reason: %s", moduleName, tostring(response))
-        end
-
-        if type(response) ~= "string" then
-            log("FATAL", "HttpGet response type invalid. Expected string but got %s", type(response))
-        elseif #response == 0 then
-            log("FATAL", "HttpGet response empty for module '%s'", moduleName)
-        else
-            log("INFO", "Response content valid, length: %d bytes", #response)
-        end
-
-        log("INFO", "Compiling fetched code for module '%s'", moduleName)
-        local compileSuccess, compiledOrError = pcall(loadstring, response)
-        if not compileSuccess then
-            log("FATAL", "Compilation failed for module '%s'. Error: %s", moduleName, tostring(compiledOrError))
-        end
-
-        local compiledType = type(compiledOrError)
-        log("INFO", "loadstring returned type: %s", compiledType)
-
-        if compiledType ~= "function" and compiledType ~= "table" then
-            log("FATAL", "Invalid module return type. Expected function or table but got %s", compiledType)
-        end
-
-        if compiledType == "function" then
-            log("INFO", "Calling compiled function for module '%s'", moduleName)
-            local execSuccess, funcResult = pcall(compiledOrError)
-            if not execSuccess then
-                log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
-            end
-            log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
-            return funcResult
-        else
-            log("SUCCESS", "Module '%s' returned table directly", moduleName)
-            return compiledOrError
-        end
+        log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
+        return funcResult
+    else
+        log("SUCCESS", "Module '%s' returned table directly", moduleName)
+        return compiledOrError
     end
 end
 local Implementations = LoadFromUrl("Implementations")
