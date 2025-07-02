@@ -62,7 +62,7 @@ function Reader.new(bytecode)
     function self:nextFloat()
         local result = buffer.readf32(stream, cursor)
         cursor = cursor + 4
-        return tonumber(format(`%0.${FLOAT_PRECISION}f`, result))
+        return tonumber(format("%0." .. FLOAT_PRECISION .. "f", result))
     end
 
     function self:nextVarInt()
