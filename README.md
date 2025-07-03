@@ -1,6 +1,5 @@
 # CREDIT BY W.A.E & break-core
 # RELEASE1 6/16/25
-# ( IN-DEV )
 # luau decompline for roblox
 
 upgrade form old version 
@@ -17,6 +16,6 @@ uprade by ZxL ( solo dev )
 
 if u want to help others project or report bug + error @xsxs_xsxs_z
 
-# UPDATE 
+# UPDATE
 
 i will add optdec
