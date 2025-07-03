@@ -12,8 +12,10 @@ this is a last version no update anymore 👋
 
 uprade by ZxL ( solo dev )
 
-no formatch code saddle 😔
-
 # DISCORD
 
 if u want to help others project or report bug + error @xsxs_xsxs_z
+
+# UPDATE 
+
+i will add optdec
