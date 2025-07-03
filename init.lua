@@ -23,7 +23,7 @@ local GitHubUrlShow = false
 -----------------------------------------------------------------
 -- new funtion for Dex
 -- fact1: i just touch something in script not all ( all decompline i make it better but base64 and init i use from other person )
--- fact2: i just add Debug and upgrade loading better
+-- fact2: i just add Debug and upgrade other modules
 -- rewrite to support exploits
 -- better support for Roblox Studio
 -- Base64 decoding supprot
