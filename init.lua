@@ -2870,6 +2870,7 @@ local function Decompile(bytecode)
 			writeActions(registerActions[mainProtoId])
 
 			finalResult = processResult(result)
+		end
 
 	local function manager(proceed, issue)
 		if proceed then
