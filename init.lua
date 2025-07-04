@@ -1932,8 +1932,6 @@ local function Decompile(bytecode)
 			    return line
 			end
 			
-			local result = ""
-			
 			for _, protoData in registerActions do
 			    local proto = protoData.proto
 			    local actions = protoData.actions
