@@ -7,7 +7,7 @@ local ENABLED_REMARKS = {
 }
 local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "optdec" -- disasm/optdec
+local DECOMPILER_MODE = "disasm" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
 local SHOW_INSTRUCTION_LINES = true -- show lines as they are in the source code
 local SHOW_OPERATION_NAMES = true
@@ -1891,70 +1891,13 @@ local function Decompile(bytecode)
 			writeActions(registerActions[mainProtoId])
 
 			finalResult = processResult(result)
-        elseif DECOMPILER_MODE == "optdec" then -- optdec
+		else -- assume optdec - optimized decompiler
 			local result = ""
-			
-			local function formatRegister(r)
-			    return "r" .. tostring(r)
-			end
-			
-			local function formatParameters(proto)
-			    local params = {}
-			    for i = 1, proto.numParams do
-			        table.insert(params, formatRegister(i - 1))
-			    end
-			    if proto.isVarArg then
-			        table.insert(params, "...")
-			    end
-			    return table.concat(params, ", ")
-			end
-			
-			local function formatAction(action)
-			    local line = action.opCode.name
-			
-			    local parts = {}
-			    if action.usedRegisters then
-			        for _, r in ipairs(action.usedRegisters) do
-			            table.insert(parts, formatRegister(r))
-			        end
-			    end
-			
-			    if action.extraData then
-			        for _, v in ipairs(action.extraData) do
-			            table.insert(parts, tostring(v))
-			        end
-			    end
-			
-			    if #parts > 0 then
-			        line ..= " " .. table.concat(parts, ", ")
-			    end
-			
-			    return line
-			end
-			
-			for _, protoData in registerActions do
-			    local proto = protoData.proto
-			    local actions = protoData.actions
-			
-			    result ..= "-- optdec: proto[".. proto.id .."] ".. (proto.name or "unnamed") .. "\n"
-			    result ..= "function(" .. formatParameters(proto) .. ")\n"
-			
-			    for _, action in ipairs(actions) do
-			        if not action.hide then
-			            result ..= "  " .. formatAction(action) .. "\n"
-			        end
-			    end
-			
-			    result ..= "end\n\n"
-			end
-			
-			finalResult = processResult(result)
-		else
-			local result = ""
+			-- remove temporary registers and some optimization passes
 			local function optimize(code)
 				result = code
 			end
-			optimize("-- Bro you put disasm or optdec wrong or just straight up forgot? Lol.")
+			optimize("-- one day..")
 
 			finalResult = processResult(result)
 		end
