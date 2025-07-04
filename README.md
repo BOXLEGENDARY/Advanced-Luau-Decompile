@@ -16,6 +16,6 @@ uprade by ZxL ( solo dev )
 
 if u want to help others project or report bug + error @xsxs_xsxs_z
 
-# UPDATE
+# NOTE 2025
 
 i will add optdec
