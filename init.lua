@@ -7,7 +7,7 @@ local ENABLED_REMARKS = {
 }
 local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "disasm" -- disasm/optdec
+local DECOMPILER_MODE = "optdec" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
 local SHOW_INSTRUCTION_LINES = true -- show lines as they are in the source code
 local SHOW_OPERATION_NAMES = true
@@ -1893,11 +1893,126 @@ local function Decompile(bytecode)
 			finalResult = processResult(result)
 		else -- assume optdec - optimized decompiler
 			local result = ""
-			-- remove temporary registers and some optimization passes
-			local function optimize(code)
-				result = code
-			end
-			optimize("-- one day..")
+
+        	local function formatRegister(register)
+        		local paramCount = 3
+        		if register < paramCount then
+        			return "p" .. tostring(register + 1)
+        		else
+ 	       		return "v" .. tostring(register - paramCount)
+        		end
+        	end
+
+        	local function formatConstant(k)
+        		if type(k.value) == "string" then
+		        	return '"' .. k.value .. '"'
+        		elseif type(k.value) == "number" then
+	        		return tostring(k.value)
+		        elseif type(k.value) == "boolean" then
+	        		return tostring(k.value)
+	        	else
+	        		return "nil"
+	        	end
+        	end
+
+        	local function simplify(code)
+        		local used = {}
+        		for var in code:gmatch("[^"]([pv]%d+)") do used[var] = true end
+        		code = code:gsub("local ([pv]%d+) = [^\n]+\n", function(var)
+	        		if not used[var] then return "" end
+	        		return "local " .. var .. " = ???\n" -- placeholder
+	        	end)
+        		return code
+        	end
+
+        	local function optimize(code)
+        		code = code:gsub("v%d+ = nil\n", "")
+        		code = code:gsub("%-%-.-\n", "")
+        		code = code:gsub("\n+", "\n")
+        		code = simplify(code)
+        		return code
+        	end
+
+        	local function writeOptimizedActions()
+	        	for _, protoActions in pairs(registerActions) do
+	        		local proto = protoActions.proto
+        			local constants = proto.constants
+	        		local labelCount = 0
+	        		local labelMap = {}
+	        		for i, action in ipairs(protoActions.actions) do
+	        			if action.jumpTarget then
+		        			labelCount += 1
+		        			labelMap[action.jumpTarget] = "::label_" .. labelCount .. "::"
+		        		end
+		        	end
+
+		        	for idx, action in ipairs(protoActions.actions) do
+		        		if labelMap[idx] then
+		        			result ..= labelMap[idx] .. "\n"
+		        		end
+		        		if action.hide then continue end
+
+		        		local op = action.opCode.name
+		        		local regs = action.usedRegisters or {}
+		        		local extra = action.extraData or {}
+
+			        	if op == "LOADK" then
+			        		result ..= "local " .. formatRegister(regs[1]) .. " = " .. formatConstant(constants[extra[1]+1]) .. "\n"
+		        		elseif op == "MOVE" then
+			        		result ..= formatRegister(regs[1]) .. " = " .. formatRegister(regs[2]) .. "\n"
+		        		elseif op == "LOADN" then
+			        		result ..= "local " .. formatRegister(regs[1]) .. " = " .. extra[1] .. "\n"
+		        		elseif op == "LOADB" then
+		        			result ..= "local " .. formatRegister(regs[1]) .. " = " .. tostring(extra[1] == 1) .. "\n"
+		        		elseif op == "LOADNIL" then
+			       		result ..= formatRegister(regs[1]) .. " = nil\n"
+			        	elseif op == "ADD" or op == "SUB" or op == "MUL" or op == "DIV" or op == "MOD" or op == "POW" then
+			        		local ops = {ADD="+",SUB="-",MUL="*",DIV="/",MOD="%",POW="^"}
+			        		result ..= formatRegister(regs[1]) .. " = " .. formatRegister(regs[2]) .. " " .. ops[op] .. " " .. formatRegister(regs[3]) .. "\n"
+			        	elseif op == "NOT" then
+			        		result ..= formatRegister(regs[1]) .. " = not " .. formatRegister(regs[2]) .. "\n"
+			        	elseif op == "MINUS" then
+			        		result ..= formatRegister(regs[1]) .. " = -" .. formatRegister(regs[2]) .. "\n"
+		        		elseif op == "LENGTH" then
+			        		result ..= formatRegister(regs[1]) .. " = #" .. formatRegister(regs[2]) .. "\n"
+			        	elseif op == "GETGLOBAL" then
+		        			result ..= formatRegister(regs[1]) .. " = _G[" .. formatConstant(constants[extra[1]+1]) .. "]\n"
+		        		elseif op == "SETGLOBAL" then
+		        			result ..= "_G[" .. formatConstant(constants[extra[1]+1]) .. "] = " .. formatRegister(regs[1]) .. "\n"
+			        	elseif op == "GETTABLE" then
+			        		result ..= formatRegister(regs[1]) .. " = " .. formatRegister(regs[2]) .. "[" .. formatRegister(regs[3]) .. "]\n"
+		        		elseif op == "SETTABLE" then
+		        			result ..= formatRegister(regs[2]) .. "[" .. formatRegister(regs[3]) .. "] = " .. formatRegister(regs[1]) .. "\n"
+		        		elseif op == "CONCAT" then
+			        		local base = table.remove(regs, 1)
+			        		local expr = {}
+			        		for _, r in ipairs(regs) do table.insert(expr, formatRegister(r)) end
+				        	result ..= formatRegister(base) .. " = " .. table.concat(expr, " .. ") .. "\n"
+			        	elseif op == "CALL" then
+				        	result ..= formatRegister(regs[1]) .. "()\n"
+		        		elseif op == "RETURN" then
+				        	result ..= "return " .. formatRegister(regs[1]) .. "\n"
+			        	elseif op == "JUMPIF" then
+			        		result ..= "if " .. formatRegister(regs[1]) .. " then goto " .. labelMap[action.jumpTarget] .. " end\n"
+			        	elseif op == "JUMPIFNOT" then
+		        			result ..= "if not " .. formatRegister(regs[1]) .. " then goto " .. labelMap[action.jumpTarget] .. " end\n"
+	        			elseif op == "JUMP" then
+		        			result ..= "goto " .. labelMap[action.jumpTarget] .. "\n"
+		         		elseif op == "NEWTABLE" then
+			        		result ..= formatRegister(regs[1]) .. " = {}\n"
+		        		elseif op == "GETVARARGS" then
+			        		result ..= formatRegister(regs[1]) .. " = ...\n"
+			        	elseif op == "DUPCLOSURE" then
+				        	result ..= formatRegister(regs[1]) .. " = function() --[[closure]] end\n"
+			        	else
+			        		result ..= "-- " .. op .. "\n"
+			        	end
+		        	end
+	        	end
+	        end
+
+	        writeOptimizedActions()
+        	result = optimize(result)
 
 			finalResult = processResult(result)
 		end
