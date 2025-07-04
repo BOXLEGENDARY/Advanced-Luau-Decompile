@@ -1932,7 +1932,6 @@ local function Decompile(bytecode)
 			    return line
 			end
 			
-			-- เริ่ม build optdec
 			local result = ""
 			
 			for _, protoData in registerActions do
