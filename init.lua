@@ -7,7 +7,7 @@ local ENABLED_REMARKS = {
 }
 local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "disasm" -- disasm/optdec
+local DECOMPILER_MODE = "optdec" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
 local SHOW_INSTRUCTION_LINES = true -- show lines as they are in the source code
 local SHOW_OPERATION_NAMES = true
@@ -1891,13 +1891,70 @@ local function Decompile(bytecode)
 			writeActions(registerActions[mainProtoId])
 
 			finalResult = processResult(result)
-		else -- assume optdec - optimized decompiler
+        elseif DECOMPILER_MODE == "optdec" then -- optdec
 			local result = ""
-			-- remove temporary registers and some optimization passes
+			
+		    local result = ""
+		    local function formatRegister(r) return "r"..r end
+		
+		    for _, protoData in registerActions do
+		        local proto = protoData.proto
+		        local actions = protoData.actions
+		
+		        result ..= "-- optdec: proto[".. proto.id .."] ".. (proto.name or "unnamed") .."\n"
+		        result ..= "function("
+		
+		        -- Parameters
+		        for i = 1, proto.numParams do
+		            result ..= formatRegister(i - 1)
+		            if i < proto.numParams then
+		                result ..= ", "
+		            end
+		        end
+		
+		        if proto.isVarArg then
+		            if proto.numParams > 0 then result ..= ", " end
+		            result ..= "..."
+		        end
+		
+		        result ..= ")\n"
+		
+		        -- Instructions
+		        for index, action in ipairs(actions) do
+		            if not action.hide then
+		                local line = string.format("  [%03d] %-14s", index, action.opCode.name)
+		
+		                local regs = {}
+		                if action.usedRegisters then
+		                    for _, r in ipairs(action.usedRegisters) do
+		                        table.insert(regs, formatRegister(r))
+		                    end
+		                end
+		
+		                if action.extraData then
+		                    for _, v in ipairs(action.extraData) do
+		                        table.insert(regs, tostring(v))
+		                    end
+		                end
+		
+		                if #regs > 0 then
+		                    line ..= " → " .. table.concat(regs, ", ")
+		                end
+		
+		                result ..= line .. "\n"
+		            end
+		        end
+		
+		        result ..= "end\n\n"
+		    end
+		
+		    finalResult = processResult(result)	
+		else
+			local result = ""
 			local function optimize(code)
 				result = code
 			end
-			optimize("-- one day..")
+			optimize("-- Bro you put disasm or optdec wrong or just straight up forgot? Lol.")
 
 			finalResult = processResult(result)
 		end
