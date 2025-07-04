@@ -6,7 +6,7 @@ upgrade form old version
 
 # VERSION
 
-this is a last version no update anymore 👋
+1
 
 # NOTE
 
