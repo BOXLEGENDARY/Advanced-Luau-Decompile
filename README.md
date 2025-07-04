@@ -1,21 +1,33 @@
-# CREDIT BY W.A.E & break-core
-# RELEASE1 6/16/25
-# luau decompline for roblox
+# Luau Decompline for Roblox
 
-upgrade form old version 
+**Release 1 — 06/16/2025**  
+Upgraded from the old version  
+This is the final version — no new feature update
 
-# VERSION
+---
 
-1
+## Developer
 
-# NOTE
+Upgraded by: `ZxL` (Solo Dev)
 
-uprade by ZxL ( solo dev )
+---
 
-# DISCORD
+## Notes (2025)
 
-if u want to help others project or report bug + error @xsxs_xsxs_z
+- optdec coming soon ...or never.
 
-# NOTE 2025
+---
 
-i will add optdec
+## Discord
+
+if u want help or report bug
+Contact: `@xsxs_xsxs_z`
+
+---
+
+## Credits
+
+Special thanks to:
+
+- `W.A.E`
+- `break-core`
