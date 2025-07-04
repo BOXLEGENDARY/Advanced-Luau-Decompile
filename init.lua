@@ -7,7 +7,7 @@ local ENABLED_REMARKS = {
 }
 local DECOMPILER_TIMEOUT = 2 -- seconds
 local READER_FLOAT_PRECISION = 7 -- up to 99
-local DECOMPILER_MODE = "optdec" -- disasm/optdec
+local DECOMPILER_MODE = "disasm" -- disasm/optdec
 local SHOW_DEBUG_INFORMATION = true -- show trivial function and array allocation details
 local SHOW_INSTRUCTION_LINES = true -- show lines as they are in the source code
 local SHOW_OPERATION_NAMES = true
@@ -1891,106 +1891,13 @@ local function Decompile(bytecode)
 			writeActions(registerActions[mainProtoId])
 
 			finalResult = processResult(result)
-        elseif DECOMPILER_MODE == "optdec" then -- optdec
+		else -- assume optdec - optimized decompiler
 			local result = ""
-			
-			local function formatRegister(register)
-				local paramCount = 3
-				if register < paramCount then
-					return "p" .. tostring(register + 1)
-				else
-					return "v" .. tostring(register - paramCount)
-				end
-			end
-		
-			local function formatConstant(k)
-				if not k then return "nil" end
-				if type(k.value) == "string" then
-					return '"' .. tostring(k.value) .. '"'
-				elseif type(k.value) == "number" then
-					return tostring(k.value)
-				elseif type(k.value) == "boolean" then
-					return tostring(k.value)
-				else
-					return "nil"
-				end
-			end
-		
-			local function formatProto(proto)
-				local str = ""
-				str ..= "-- function: " .. (proto.name or "anon") .. "\n"
-				str ..= "-- defined @ [" .. proto.lineDefined .. "] with " .. proto.paramCount .. " params\n"
-				return str
-			end
-		
-			local function formatOperation(idx, action, proto, constants)
-				if action.hide then return nil end
-		
-				local r = action.usedRegisters or {}
-				local d = action.extraData or {}
-				local op = action.opCode.name
-		
-				local line = "[" .. string.format("%03d", idx) .. "] " .. string.format("%-15s", op)
-		
-				if op == "LOADK" then
-					line ..= formatRegister(r[1]) .. " = " .. formatConstant(constants[d[1] + 1])
-				elseif op == "LOADNIL" then
-					line ..= formatRegister(r[1]) .. " = nil"
-				elseif op == "MOVE" then
-					line ..= formatRegister(r[1]) .. " = " .. formatRegister(r[2])
-				elseif op == "LOADB" then
-					line ..= formatRegister(r[1]) .. " = " .. tostring(d[1] ~= 0)
-				elseif op == "RETURN" then
-					line ..= "return " .. formatRegister(r[1])
-				elseif op == "ADD" then
-					line ..= formatRegister(r[1]) .. " = " .. formatRegister(r[2]) .. " + " .. formatRegister(r[3])
-				elseif op == "SUB" then
-					line ..= formatRegister(r[1]) .. " = " .. formatRegister(r[2]) .. " - " .. formatRegister(r[3])
-				elseif op == "MUL" then
-					line ..= formatRegister(r[1]) .. " = " .. formatRegister(r[2]) .. " * " .. formatRegister(r[3])
-				elseif op == "DIV" then
-					line ..= formatRegister(r[1]) .. " = " .. formatRegister(r[2]) .. " / " .. formatRegister(r[3])
-				elseif op == "GETGLOBAL" then
-					local key = formatConstant(constants[d[1] + 1])
-					line ..= formatRegister(r[1]) .. " = _G[" .. key .. "]"
-				elseif op == "SETGLOBAL" then
-					local key = formatConstant(constants[d[1] + 1])
-					line ..= "_G[" .. key .. "] = " .. formatRegister(r[1])
-				elseif op == "GETIMPORT" then
-					local key = formatConstant(constants[d[1] + 1])
-					line ..= formatRegister(r[1]) .. " = IMPORT[" .. key .. "]"
-				elseif op == "NEWCLOSURE" then
-					line ..= formatRegister(r[1]) .. " = function(...) --[[closure]] end"
-				elseif op == "CALL" then
-					line ..= formatRegister(r[1]) .. "(...)"
-				elseif op == "JUMP" then
-					line ..= "-- jump +" .. tostring(d[1])
-				else
-					line ..= "-- [" .. op .. "] not handled yet"
-				end
-		
-				return line
-			end
-		
-			-- Process main proto
-			local mainProto = protoTable[mainProtoId]
-			local actions = registerActions[mainProtoId].actions
-			local constants = mainProto.constants
-		
-			result ..= formatProto(mainProto) .. "\n"
-		
-			for idx, action in ipairs(actions) do
-				local line = formatOperation(idx, action, mainProto, constants)
-				if line then result ..= line .. "\n" end
-			end
-		
-			finalResult = processResult(result)
-		else
-			local result = ""
+			-- remove temporary registers and some optimization passes
 			local function optimize(code)
 				result = code
 			end
-			optimize("-- Bro you put disasm or optdec wrong or just straight up forgot? Lol.")
+			optimize("-- one day..")
 
 			finalResult = processResult(result)
 		end
