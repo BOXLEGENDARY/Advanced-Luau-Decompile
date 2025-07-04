@@ -1985,6 +1985,7 @@ local function Decompile(bytecode)
 			end
 		
 			finalResult = processResult(result)
+		end
 
 	local function manager(proceed, issue)
 		if proceed then
