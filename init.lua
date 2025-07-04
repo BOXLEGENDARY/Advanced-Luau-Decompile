@@ -1894,61 +1894,64 @@ local function Decompile(bytecode)
         elseif DECOMPILER_MODE == "optdec" then -- optdec
 			local result = ""
 			
-		    local result = ""
-		    local function formatRegister(r) return "r"..r end
-		
-		    for _, protoData in registerActions do
-		        local proto = protoData.proto
-		        local actions = protoData.actions
-		
-		        result ..= "-- optdec: proto[".. proto.id .."] ".. (proto.name or "unnamed") .."\n"
-		        result ..= "function("
-		
-		        -- Parameters
-		        for i = 1, proto.numParams do
-		            result ..= formatRegister(i - 1)
-		            if i < proto.numParams then
-		                result ..= ", "
-		            end
-		        end
-		
-		        if proto.isVarArg then
-		            if proto.numParams > 0 then result ..= ", " end
-		            result ..= "..."
-		        end
-		
-		        result ..= ")\n"
-		
-		        -- Instructions
-		        for index, action in ipairs(actions) do
-		            if not action.hide then
-		                local line = string.format("  [%03d] %-14s", index, action.opCode.name)
-		
-		                local regs = {}
-		                if action.usedRegisters then
-		                    for _, r in ipairs(action.usedRegisters) do
-		                        table.insert(regs, formatRegister(r))
-		                    end
-		                end
-		
-		                if action.extraData then
-		                    for _, v in ipairs(action.extraData) do
-		                        table.insert(regs, tostring(v))
-		                    end
-		                end
-		
-		                if #regs > 0 then
-		                    line ..= " → " .. table.concat(regs, ", ")
-		                end
-		
-		                result ..= line .. "\n"
-		            end
-		        end
-		
-		        result ..= "end\n\n"
-		    end
-		
-		    finalResult = processResult(result)	
+			local function formatRegister(r)
+			    return "r" .. tostring(r)
+			end
+			
+			local function formatParameters(proto)
+			    local params = {}
+			    for i = 1, proto.numParams do
+			        table.insert(params, formatRegister(i - 1))
+			    end
+			    if proto.isVarArg then
+			        table.insert(params, "...")
+			    end
+			    return table.concat(params, ", ")
+			end
+			
+			local function formatAction(action)
+			    local line = action.opCode.name
+			
+			    local parts = {}
+			    if action.usedRegisters then
+			        for _, r in ipairs(action.usedRegisters) do
+			            table.insert(parts, formatRegister(r))
+			        end
+			    end
+			
+			    if action.extraData then
+			        for _, v in ipairs(action.extraData) do
+			            table.insert(parts, tostring(v))
+			        end
+			    end
+			
+			    if #parts > 0 then
+			        line ..= " " .. table.concat(parts, ", ")
+			    end
+			
+			    return line
+			end
+			
+			-- เริ่ม build optdec
+			local result = ""
+			
+			for _, protoData in registerActions do
+			    local proto = protoData.proto
+			    local actions = protoData.actions
+			
+			    result ..= "-- optdec: proto[".. proto.id .."] ".. (proto.name or "unnamed") .. "\n"
+			    result ..= "function(" .. formatParameters(proto) .. ")\n"
+			
+			    for _, action in ipairs(actions) do
+			        if not action.hide then
+			            result ..= "  " .. formatAction(action) .. "\n"
+			        end
+			    end
+			
+			    result ..= "end\n\n"
+			end
+			
+			finalResult = processResult(result)
 		else
 			local result = ""
 			local function optimize(code)
