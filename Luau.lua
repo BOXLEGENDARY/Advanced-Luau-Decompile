@@ -8,7 +8,7 @@ local bit32_rshift = bit32.rshift     -- Bitwise right shift
 local bit32_lshift = bit32.lshift     -- Bitwise left shift
 local bit32_bnot = bit32.bnot         -- Bitwise NOT
 
--- Frequently used bitmask constants and shift values for decompile instructions
+-- Frequently used bitmask constants and shift values for decode instructions
 local OPCODE_MASK = 0xFF              -- Mask to extract the opcode from instruction
 local SHIFT_8 = 8                     -- Bit shift for A field
 local SHIFT_16 = 16                   -- Bit shift for B/D field
@@ -352,7 +352,7 @@ function Luau:GetBaseTypeString(type, checkOptional)
 	return result
 end
 -- Map from Builtin Function ID to their string representation
--- Used when decompile fastcall or native builtins (like math.abs, bit32.bxor)
+-- Used when decode fastcall or native builtins (like math.abs, bit32.bxor)
 local builtinLookup = {
 	[1] = "assert",
 	[2] = "math.abs",  [3] = "math.acos", [4] = "math.asin", [5] = "math.atan2", [6] = "math.atan",
