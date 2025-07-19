@@ -3,7 +3,6 @@
 local CASE_MULTIPLIER = 227 -- 0xE3
 
 -- Common constants and optimized bitwise function references
--- These improve performance by reducing repeated global lookups
 local bit32_band = bit32.band         -- Bitwise AND
 local bit32_rshift = bit32.rshift     -- Bitwise right shift
 local bit32_lshift = bit32.lshift     -- Bitwise left shift
