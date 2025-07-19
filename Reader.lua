@@ -1,5 +1,4 @@
 -- Reader
--- High Performance
 local FLOAT_PRECISION = 24
 
 local Reader = {}
