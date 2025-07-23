@@ -21,14 +21,13 @@ local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this
 local Debug = false -- true / show all debug loading in console | false / show some debug
 local GitHubUrlShow = false
 -----------------------------------------------------------------
--- new funtion for Dex
--- fact1: i just touch something in script not all ( all decompline i make it better but base64 and init i use from other person )
--- fact2: i just add Debug and upgrade other modules
+-- new funtion
 -- rewrite to support exploits
 -- better support for Roblox Studio
 -- Base64 decoding supprot
--- nice to meet you this is a frist time and last time to update Good Luck Hacker
+-- nice to meet you this is a frist time and last time to update Good Luck 
 -- special thanks w.a.e and break-core
+-- fact: i only upgraded [ Implementations luau reader ] and other i use from break-core
 -------------------------------------------------------------------
 
 -- For studio, put your bytecode here.
