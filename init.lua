@@ -19,7 +19,7 @@ local RETURN_ELAPSED_TIME = false -- return time it took to finish processing th
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 local Debug = true -- true / show all debug loading in console | false / show some debug
-local GitHubUrlShow = true
+local GitHubUrlShow = false
 -----------------------------------------------------------------
 -- new funtion
 -- rewrite to support exploits
