@@ -35,13 +35,14 @@ local input = ``
 
 local LoadFromUrl
 
+local LoadFromUrl
+
 LoadFromUrl = function(moduleName)
     local BASE_USER = "BOXLEGENDARY"
     local BASE_BRANCH = "main"
     local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
 
     local function log(level, message, ...)
-        local prefix = timestamp() .. " [" .. level .. "] "
         local fullMessage = select("#", ...) > 0 and message:format(...) or message
 
         if not Debug then
@@ -51,11 +52,11 @@ LoadFromUrl = function(moduleName)
         end
 
         if level == "FATAL" then
-            error(prefix .. fullMessage, 2)
+            error(fullMessage, 2)
         elseif level == "ERROR" or level == "WARN" or level == "INFO" or level == "SUCCESS" then
-            warn(prefix .. fullMessage)
+            warn(fullMessage)
         else
-            print(prefix .. fullMessage)
+            print(fullMessage)
         end
     end
 
@@ -71,7 +72,7 @@ LoadFromUrl = function(moduleName)
     end
 
     local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-    
+
     if GitHubUrlShow then
         log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
     end
