@@ -40,31 +40,24 @@ LoadFromUrl = function(moduleName)
     local BASE_BRANCH = "main"
     local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
 
-    local function timestamp()
-        return "[" .. os.date("%H:%M:%S") .. "]"
-    end
-
     local function log(level, message, ...)
-        local prefix = timestamp() .. " [" .. level .. "] "
         local fullMessage = select("#", ...) > 0 and message:format(...) or message
 
-        if not Debug then
-            if level ~= "ERROR" and level ~= "FATAL" and level ~= "SUCCESS" then
-                return
-            end
+        if not Debug and level ~= "ERROR" and level ~= "FATAL" and level ~= "SUCCESS" then
+            return
         end
 
         if level == "FATAL" then
-            error(prefix .. fullMessage, 2)
+            error("[" .. level .. "] " .. fullMessage, 2)
         elseif level == "ERROR" or level == "WARN" or level == "INFO" or level == "SUCCESS" then
-            warn(prefix .. fullMessage)
+            warn("[" .. level .. "] " .. fullMessage)
         else
-            print(prefix .. fullMessage)
+            print("[" .. level .. "] " .. fullMessage)
         end
     end
 
-    local debugID = tostring(math.random(100000, 999999))
-    log("INFO", "----- LoadFromUrl started (debugID: %s) -----", debugID)
+    local debugID = tostring(math.random(0, 999999))
+    log("INFO", "----- LoadFromUrl started (debugID: LD-%s) -----", debugID) -- LD = LuauDecompile
 
     if type(moduleName) ~= "string" then
         log("FATAL", "Invalid moduleName type. Expected string but got %s", type(moduleName))
@@ -75,7 +68,7 @@ LoadFromUrl = function(moduleName)
     end
 
     local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-    
+
     if GitHubUrlShow then
         log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
     end
