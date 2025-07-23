@@ -19,7 +19,7 @@ local RETURN_ELAPSED_TIME = false -- return time it took to finish processing th
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 local Debug = true -- true / show all debug loading in console | false / show some debug
-local UrlShow = true
+local GitHubUrlShow = true
 -----------------------------------------------------------------
 -- new funtion
 -- rewrite to support exploits
@@ -71,7 +71,7 @@ LoadFromUrl = function(moduleName)
 
     local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
 
-    if UrlShow then
+    if GitHubUrlShow then
         log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
     end
 
