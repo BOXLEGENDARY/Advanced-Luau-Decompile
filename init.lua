@@ -18,8 +18,8 @@ local LIST_USED_GLOBALS = true -- list all (non-Roblox!!) globals used in the sc
 local RETURN_ELAPSED_TIME = false -- return time it took to finish processing the bytecode
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
-local Debug = false -- true / show all debug loading in console | false / show some debug
-local GitHubUrlShow = false
+local Debug = true -- true / show all debug loading in console | false / show some debug
+local UrlShow = true
 -----------------------------------------------------------------
 -- new funtion
 -- rewrite to support exploits
@@ -32,8 +32,6 @@ local GitHubUrlShow = false
 
 -- For studio, put your bytecode here.
 local input = ``
-
-local LoadFromUrl
 
 local LoadFromUrl
 
@@ -73,7 +71,7 @@ LoadFromUrl = function(moduleName)
 
     local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
 
-    if GitHubUrlShow then
+    if UrlShow then
         log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
     end
 
