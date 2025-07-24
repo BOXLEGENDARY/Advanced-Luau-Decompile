@@ -103,22 +103,17 @@ LoadFromUrl = function(moduleName)
     local compiledType = type(compiledOrError)
     log("INFO", "loadstring returned type: %s", compiledType)
 
-    if compiledType ~= "function" and compiledType ~= "table" then
-        log("FATAL", "Invalid module return type. Expected function or table but got %s", compiledType)
+    if compiledType ~= "function" then
+        log("FATAL", "Invalid module return type. Expected function but got %s", compiledType)
     end
 
-    if compiledType == "function" then
-        log("INFO", "Calling compiled function for module '%s'", moduleName)
-        local execSuccess, funcResult = pcall(compiledOrError)
-        if not execSuccess then
-            log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
-        end
-        log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
-        return funcResult
-    else
-        log("SUCCESS", "Module '%s' returned table directly", moduleName)
-        return compiledOrError
+    log("INFO", "Calling compiled function for module '%s'", moduleName)
+    local execSuccess, funcResult = pcall(compiledOrError)
+    if not execSuccess then
+        log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
     end
+    log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
+    return funcResult
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
