@@ -112,7 +112,7 @@ LoadFromUrl = function(moduleName)
     if not execSuccess then
         log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
     end
-    log("SUCCESS", "Module '%s' executed and returned successfully (function)", moduleName)
+    log("SUCCESS", "Module '%s' executed and returned successfully", moduleName)
     return funcResult
 end
 local Implementations = LoadFromUrl("Implementations")
