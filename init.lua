@@ -1395,7 +1395,6 @@ local function Decompile(bytecode)
 					result ..= "\n" .. padRight(" --", 30) .. " ;; ".. padLeft(i, 5) .. " ".. padRight(opCodeName, 10) .. " ".. tostring(Luau:INSN_A(action.opCode.value)) .. " ".. tostring(Luau:INSN_B(action.opCode.value) or "") .. " ".. tostring(Luau:INSN_C(action.opCode.value) or "") .. "\n"
 				end
 
-		local mainProtoId, registerActions, protoTable = organize()
 		writeActions(registerActions[mainProtoId])
 
 		finalResult = processResult(result)
