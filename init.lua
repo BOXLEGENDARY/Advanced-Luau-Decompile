@@ -363,8 +363,7 @@ local function Decompile(bytecode)
 							constValue = "vector.create(".. x ..", ".. y ..", ".. z ..", ".. w ..")"
 						end
 					elseif constType ~= LuauBytecodeTag.LBC_CONSTANT_NIL then
-						-- this is not supposed to happen.
-						result is likely malformed
+                        -- this is not supposed to happen. result is likely malformed
 					end
 
 					-- info on the constant at index `i`
@@ -941,8 +940,6 @@ local function Decompile(bytecode)
 							local typedParams = proto.typedParams
 
 							local protoBody = ""
-
-								protoBody .....
 						end -- if function has a name, add it
 						if name then
 							protoBody = "local function ".. name
