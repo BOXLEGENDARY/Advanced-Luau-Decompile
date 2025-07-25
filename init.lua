@@ -20,7 +20,7 @@ local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returne
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
 local Debug = false -- true / show all debug loading in console | false / show some debug
 local GitHubUrlShow = false -- work only u set Debug = true
------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- new funtion
 -- rewrite to support exploits
 -- better support for Roblox Studio
@@ -28,7 +28,7 @@ local GitHubUrlShow = false -- work only u set Debug = true
 -- nice to meet you this is a frist time and last time to update Good Luck 
 -- special thanks w.a.e and break-core
 -- fact: i only upgraded [ Implementations luau reader ] and other i use from break-core
--------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -- For studio, put your bytecode here.
 local input = ``
