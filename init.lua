@@ -1891,7 +1891,7 @@ local function Decompile(bytecode)
 end
 
 if not USE_IN_STUDIO then
-	local _ENV = (getgenv or getrenv or getfenv)()
+	local _ENV = (getgenv and getgenv()) or (getfenv and getfenv(1)) or _ENV
 	_ENV.decompile = function(script)
 		if not getscriptbytecode then
 			error("Your tool is missing the function 'getscriptbytecode'")
