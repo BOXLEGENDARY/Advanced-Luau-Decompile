@@ -18,102 +18,46 @@ local LIST_USED_GLOBALS = true -- list all (non-Roblox!!) globals used in the sc
 local RETURN_ELAPSED_TIME = true -- return time it took to finish processing the bytecode
 local DECODE_AS_BASE64 = false -- Decodes the bytecode as base64 if it's returned as such.
 local USE_IN_STUDIO = false -- Toggles Roblox Studio mode, which allows for this to be used in
-local Debug = false -- true / show all debug loading in console | false / show some debug
-local GitHubUrlShow = false -- work only u set Debug = true
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
--- new funtion
--- rewrite to support exploits
--- better support for Roblox Studio
--- Base64 decoding supprot
--- nice to meet you this is a frist time and last time to update Good Luck 
--- special thanks w.a.e and break-core
--- fact: i only upgraded [ Implementations luau reader ] and other i use from break-core
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -- For studio, put your bytecode here.
 local input = ``
 
 local LoadFromUrl
 
-LoadFromUrl = function(moduleName)
-    local BASE_USER = "BOXLEGENDARY"
-    local BASE_BRANCH = "main"
-    local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
+if USE_IN_STUDIO then
+	-- A bit of an annoying thing, but I don't want 2 separate names for this
+	LoadFromUrl = function(moduleName)
+		return require(workspace["Disassembler"][moduleName])
+	end
+else
+	LoadFromUrl = function(x)
+		local BASE_USER = "BOXLEGENDARY"
+		local BASE_BRANCH = "main"
+		local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
 
-    local function log(level, message, ...)
-        local fullMessage = select("#", ...) > 0 and message:format(...) or message
+		local loadSuccess, loadResult = pcall(function()
+			local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
+			return game:HttpGet(formattedUrl, true)
+		end)
 
-        if not Debug then
-            if level ~= "ERROR" and level ~= "FATAL" and level ~= "SUCCESS" then
-                return
-            end
-        end
+		if not loadSuccess then
+			warn(`({math.random()}) MОDULE FАILЕD ТO LOАD FRОM URL: {loadResult}.`)
+			return
+		end
 
-        if level == "FATAL" then
-            error(fullMessage, 2)
-        elseif level == "ERROR" or level == "WARN" or level == "INFO" or level == "SUCCESS" then
-            warn(fullMessage)
-        else
-            print(fullMessage)
-        end
-    end
+		local success, result = pcall(loadstring, loadResult)
+		if not success then
+			warn(`({math.random()}) MОDULE FАILЕD ТO LOАDSТRING: {result}.`)
+			return
+		end
 
-    local debugID = tostring(math.random(0, 999999))
-    log("INFO", "----- LoadFromUrl started (debugID: LD-%s) -----", debugID)
+		if type(result) ~= "function" then
+			warn(`MОDULE IS {tostring(result)} (function expected)`)
+			return
+		end
 
-    if type(moduleName) ~= "string" then
-        log("FATAL", "Invalid moduleName type. Expected string but got %s", type(moduleName))
-    elseif #moduleName == 0 then
-        log("FATAL", "Module name is an empty string")
-    else
-        log("INFO", "Module name validated: %s", moduleName)
-    end
-
-    local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, moduleName)
-
-    if GitHubUrlShow then
-        log("INFO", "Prepared GitHub URL for fetch: %s", formattedUrl)
-    end
-
-    local httpSuccess, response = pcall(function()
-        log("INFO", "Attempting HttpGet from URL...")
-        local result = game:HttpGet(formattedUrl, true)
-        log("INFO", "HttpGet succeeded, received %d bytes", #result)
-        return result
-    end)
-
-    if not httpSuccess then
-        log("FATAL", "HttpGet failed for module '%s'. Reason: %s", moduleName, tostring(response))
-    end
-
-    if type(response) ~= "string" then
-        log("FATAL", "HttpGet response type invalid. Expected string but got %s", type(response))
-    elseif #response == 0 then
-        log("FATAL", "HttpGet response empty for module '%s'", moduleName)
-    else
-        log("INFO", "Response content valid, length: %d bytes", #response)
-    end
-
-    log("INFO", "Compiling fetched code for module '%s'", moduleName)
-    local compileSuccess, compiledOrError = pcall(loadstring, response)
-    if not compileSuccess then
-        log("FATAL", "Compilation failed for module '%s'. Error: %s", moduleName, tostring(compiledOrError))
-    end
-
-    local compiledType = type(compiledOrError)
-    log("INFO", "loadstring returned type: %s", compiledType)
-
-    if compiledType ~= "function" then
-        log("FATAL", "Invalid module return type. Expected function but got %s", compiledType)
-    end
-
-    log("INFO", "Calling compiled function for module '%s'", moduleName)
-    local execSuccess, funcResult = pcall(compiledOrError)
-    if not execSuccess then
-        log("FATAL", "Runtime error inside module '%s' function: %s", moduleName, tostring(funcResult))
-    end
-    log("SUCCESS", "Module '%s' executed and returned successfully", moduleName)
-    return funcResult
+		return result()
+	end
 end
 local Implementations = LoadFromUrl("Implementations")
 local Reader = LoadFromUrl("Reader")
@@ -1947,7 +1891,7 @@ local function Decompile(bytecode)
 end
 
 if not USE_IN_STUDIO then
-	local _ENV = (getgenv and getgenv()) or (getfenv and getfenv()) or _ENV
+	local _ENV = (getgenv or getrenv or getfenv)()
 	_ENV.decompile = function(script)
 		if not getscriptbytecode then
 			error("Your tool is missing the function 'getscriptbytecode'")
@@ -1996,6 +1940,9 @@ else
 		local decomped, elapsedTime = Decompile(buffer.tostring(decoded))
 		warn("done decompiling:", elapsedTime or 0)
 		
+		-- Some scripts like Criminality's GunClient are thousands of lines long, and directly setting string properties
+		-- maxes out at 200000 characters. To get around this, we use a dummy LocalScript and use ScriptEditorService to
+		-- dump the output into the dummy script, therefore bypassing Roblox's string regulations.
 		game:GetService("ScriptEditorService"):UpdateSourceAsync(workspace["Disassembler"].LocalScript, function()
 			return decomped
 		end)
