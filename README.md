@@ -15,7 +15,6 @@ Upgraded by: `ZxL` (Solo Dev)
 ## Notes (2025)
 
 - ~~optdec coming soon ...or never.~~
-- i will remake init
 
 ---
 
