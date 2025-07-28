@@ -368,7 +368,11 @@ local builtinLookup = {
 	[49] = "rawset", [50] = "rawget", [51] = "rawequal", [52] = "table.insert", [53] = "table.unpack",
 	[54] = "Vector3.new", [55] = "bit32.countlz", [56] = "bit32.countrz", [57] = "select",
 	[58] = "rawlen", [59] = "bit32.extract", [60] = "getmetatable", [61] = "setmetatable",
-	[62] = "tonumber", [63] = "tostring",
+	[62] = "tonumber", [63] = "tostring", [64] = "bit32.byteswap",
+	[65] = "buffer.readi8", [66] = "buffer.readu8", [67] = "buffer.writeu8",
+	[68] = "buffer.readi16", [69] = "buffer.readu16", [70] = "buffer.writeu16",
+	[71] = "buffer.readi32", [72] = "buffer.readu32", [73] = "buffer.writeu32",
+	[74] = "buffer.readf32", [75] = "buffer.writef32", [76] = "buffer.readf64", [77] = "buffer.writef64",
 	[78] = "vector.magnitude", [79] = "vector.normalize", [80] = "vector.cross", [81] = "vector.dot",
 	[82] = "vector.floor", [83] = "vector.ceil", [84] = "vector.abs", [85] = "vector.sign",
 	[86] = "vector.clamp", [87] = "vector.min", [88] = "vector.max"
