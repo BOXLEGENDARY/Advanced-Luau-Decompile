@@ -265,9 +265,6 @@ local Luau = {
 		-- A: target register (see FORGLOOP for register layout)
 		{ ["name"] = "FORGPREP_NEXT", ["type"] = "A" },
 
-		-- no longer supported
-		--{ ["name"] = "DEP_FORGLOOP_NEXT", ["type"] = "A" },
-
 		-- NATIVECALL: start executing new function in native code
 		-- this is a pseudo-instruction that is never emitted by bytecode compiler, but can be constructed at runtime to accelerate native code dispatch
 		{ ["name"] = "NATIVECALL", ["type"] = "none" },
@@ -313,10 +310,6 @@ local Luau = {
 		-- A: capture type, see LuauCaptureType
 		-- B: source register (for VAL/REF) or upvalue index (for UPVAL/UPREF)
 		{ ["name"] = "CAPTURE", ["type"] = "AB" },
-
-		-- both no longer supported
-		--{ ["name"] = "DEP_JUMPIFEQK", ["type"] = "AsD", ["aux"] = true },
-		--{ ["name"] = "DEP_JUMPIFNOTEQK", ["type"] = "AsD", ["aux"] = true },
 
 		-- SUBRK, DIVRK: compute arithmetic operation between the constant and a source register and put the result into target register
 		-- A: target register
