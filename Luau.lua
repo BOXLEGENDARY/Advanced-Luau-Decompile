@@ -249,7 +249,7 @@ local Luau = {
 	    -- FORGPREP_INEXT: prepare FORGLOOP with 2 output variables (no AUX encoding), assuming generator is luaB_inext, and jump to FORGLOOP
 	    -- A: target register (see FORGLOOP for register layout)
 	    -- D: jump offset (-32768..32767)
-		{ ["name"] = "FORGPREP_INEXT", ["type"] = "AD" },
+		{ ["name"] = "FORGPREP_INEXT", ["type"] = "AsD" },
 
 		-- FASTCALL3: perform a fast call of a built-in function using 3 register arguments
 		-- A: builtin function id (see LuauBuiltinFunction)

@@ -724,7 +724,7 @@ local function Decompile(bytecode)
 						end
 						registerAction(registers, {sD, aux})
 					elseif opCodeName == "FORGPREP_INEXT" or opCodeName == "FORGPREP_NEXT" then
-						registerAction({A}, {D})
+						registerAction({A}, {sD})
 					elseif opCodeName == "FORGPREP" then
 						registerAction({A}, {sD})
 					elseif opCodeName == "GETVARARGS" then
@@ -1594,10 +1594,10 @@ local function Decompile(bytecode)
 							local genericEndBody = "end -- iterate + jump to #".. endIndex
 							result ..= genericEndBody
 						elseif opCodeName == "FORGPREP_INEXT" then
-							local targetRegister = usedRegisters[1] + 1
-
+							local targetRegister = usedRegisters[1]
+							
 							local variablesBody = formatRegister(targetRegister + 2) ..", ".. formatRegister(targetRegister + 3)
-
+							
 							result ..= "for ".. variablesBody .." in ipairs(".. formatRegister(targetRegister) ..") do"
 						elseif opCodeName == "FORGPREP_NEXT" then
 							local targetRegister = usedRegisters[1] + 1
