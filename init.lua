@@ -724,7 +724,7 @@ local function Decompile(bytecode)
 						end
 						registerAction(registers, {sD, aux})
 					elseif opCodeName == "FORGPREP_INEXT" or opCodeName == "FORGPREP_NEXT" then
-						registerAction({A, A+1})
+						registerAction({A}, {D})
 					elseif opCodeName == "FORGPREP" then
 						registerAction({A}, {sD})
 					elseif opCodeName == "GETVARARGS" then

@@ -246,12 +246,10 @@ local Luau = {
 		-- the first variable is then copied into index; generator/state are immutable, index isn't visible to user code
 		{ ["name"] = "FORGLOOP", ["type"] = "AsD", ["aux"] = true },
 
-		-- FORGPREP_INEXT: prepare FORGLOOP with 2 output variables (no AUX encoding), assuming generator is luaB_inext, and jump to FORGLOOP
-		-- A: target register (see FORGLOOP for register layout)
+	    -- FORGPREP_INEXT: prepare FORGLOOP with 2 output variables (no AUX encoding), assuming generator is luaB_inext, and jump to FORGLOOP
+	    -- A: target register (see FORGLOOP for register layout)
+	    -- D: jump offset (-32768..32767)
 		{ ["name"] = "FORGPREP_INEXT", ["type"] = "A" },
-
-		-- removed in v3
-		--{ ["name"] = "DEP_FORGLOOP_INEXT", ["type"] = "A" },
 
 		-- FASTCALL3: perform a fast call of a built-in function using 3 register arguments
 		-- A: builtin function id (see LuauBuiltinFunction)
