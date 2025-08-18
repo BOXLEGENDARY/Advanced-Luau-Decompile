@@ -1,7 +1,7 @@
 # Luau Decompline for Roblox
 
 **Release — 06/16/2025**  
-Upgraded from the old version  
+Upgraded from w-a-e version  
 This is the final version — no new feature update
 
 ---
