@@ -21,7 +21,5 @@ Contact: `@xsxs_xsxs_z`
 
 ## Credits
 
-Credits:
-
 - `W.A.E ( Creator )`
 - `break-core ( Base64 )`
