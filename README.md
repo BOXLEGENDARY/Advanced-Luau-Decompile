@@ -8,7 +8,7 @@ This is the final version — no new feature update
 
 ## Developer
 
-Upgraded by: `ZxL` (Solo Dev)
+by: `ZxL`
 
 ---
 
