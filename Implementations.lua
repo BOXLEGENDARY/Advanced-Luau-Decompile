@@ -16,7 +16,7 @@ local function toBoolean(n)
   return n ~= 0
 end
 
--- Auto escape string for safe code formatting
+-- Auto escape string
 local function toEscapedString(s)
   if type(s) == "string" then
     local hasQuote = string_find(s, '"', 1, true)
