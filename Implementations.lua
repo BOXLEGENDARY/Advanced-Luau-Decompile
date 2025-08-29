@@ -2,7 +2,7 @@ local _ENV = (getgenv and getgenv()) or (getfenv and getfenv(1)) or _ENV
 
 local Implementations = {}
 
--- Local references for performance
+-- Local references
 local string_find = string.find
 local string_match = string.match
 local string_rep = string.rep
