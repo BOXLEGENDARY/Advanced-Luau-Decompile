@@ -549,6 +549,8 @@ local Luau = {
 	
 	    -- math.lerp
 	    LBF_MATH_LERP = 89,
+    
+        LBF_VECTOR_LERP = 90,
 	},
 	-- Proto flag bitmask, stored in Proto::flags
 	ProtoFlag = {
@@ -836,6 +838,10 @@ function Luau:GetBuiltinInfo(bfid)
 
 		if bfid == LuauBuiltinFunction.LBF_MATH_LERP then
 			return "math.lerp"
+		end
+
+		if bfid == LuauBuiltinFunction.LBF_VECTOR_LERP then
+			return "vector.lerp"
 		end
 	end
 end
