@@ -1,128 +1,107 @@
 --!native
 --!optimize 2
 
--- i didn't test if it error good luck
 local lookupValueToCharacter = buffer.create(64)
 local lookupCharacterToValue = buffer.create(256)
 
 local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 local padding = string.byte("=")
 
-local band, bor, rshift, lshift, byteswap = bit32.band, bit32.bor, bit32.rshift, bit32.lshift, bit32.byteswap
-local readu8, readu32, writeu8, buflen = buffer.readu8, buffer.readu32, buffer.writeu8, buffer.len
-
-for i = 1, 64 do
-	local v = i - 1
-	local c = string.byte(alphabet, i)
-	writeu8(lookupValueToCharacter, v, c)
-	writeu8(lookupCharacterToValue, c, v)
+for i = 1, #alphabet do
+	local value = i - 1
+	local char = string.byte(alphabet, i)
+	buffer.writeu8(lookupValueToCharacter, value, char)
+	buffer.writeu8(lookupCharacterToValue, char, value)
 end
 
 local function encode(input: buffer): buffer
-	local inputLength = buflen(input)
-	if inputLength == 0 then
-		return buffer.create(0)
-	end
+	local inputLength = buffer.len(input)
+	if inputLength == 0 then return buffer.create(0) end
 
-	local inputChunks = math.ceil(inputLength / 3)
-	local outputLength = inputChunks * 4
+	local inputChunks = math.floor(inputLength / 3)
+	local remainder = inputLength % 3
+	local outputLength = inputChunks * 4 + (remainder > 0 and 4 or 0)
 	local output = buffer.create(outputLength)
 
-	for chunkIndex = 1, inputChunks - 1 do
-		local inPos, outPos = (chunkIndex - 1) * 3, (chunkIndex - 1) * 4
-		local chunk = byteswap(readu32(input, inPos))
+	for i = 0, inputChunks - 1 do
+		local inputIndex = i * 3
+		local outputIndex = i * 4
 
-		local v1 = rshift(chunk, 26)
-		local v2 = band(rshift(chunk, 20), 0x3F)
-		local v3 = band(rshift(chunk, 14), 0x3F)
-		local v4 = band(rshift(chunk, 8), 0x3F)
+		local b1, b2, b3 = buffer.readu8(input, inputIndex), buffer.readu8(input, inputIndex + 1), buffer.readu8(input, inputIndex + 2)
+		local chunk = bit32.bor(bit32.lshift(b1, 16), bit32.lshift(b2, 8), b3)
 
-		writeu8(output, outPos,     readu8(lookupValueToCharacter, v1))
-		writeu8(output, outPos + 1, readu8(lookupValueToCharacter, v2))
-		writeu8(output, outPos + 2, readu8(lookupValueToCharacter, v3))
-		writeu8(output, outPos + 3, readu8(lookupValueToCharacter, v4))
+		buffer.writeu8(output, outputIndex,     buffer.readu8(lookupValueToCharacter, bit32.rshift(chunk, 18)))
+		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 12), 0x3F)))
+		buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 6), 0x3F)))
+		buffer.writeu8(output, outputIndex + 3, buffer.readu8(lookupValueToCharacter, bit32.band(chunk, 0x3F)))
 	end
 
-	local remainder = inputLength % 3
-	local outPos = outputLength - 4
-	if remainder == 1 then
-		local c = readu8(input, inputLength - 1)
-		local v1, v2 = rshift(c, 2), band(lshift(c, 4), 0x3F)
+	if remainder > 0 then
+		local lastIndex = inputChunks * 3
+		local b1 = buffer.readu8(input, lastIndex)
+		local b2 = remainder == 2 and buffer.readu8(input, lastIndex + 1) or 0
 
-		writeu8(output, outPos,     readu8(lookupValueToCharacter, v1))
-		writeu8(output, outPos + 1, readu8(lookupValueToCharacter, v2))
-		writeu8(output, outPos + 2, padding)
-		writeu8(output, outPos + 3, padding)
+		local chunk = bit32.bor(bit32.lshift(b1, 16), bit32.lshift(b2, 8))
+		local outputIndex = inputChunks * 4
 
-	elseif remainder == 2 then
-		local c = bor(lshift(readu8(input, inputLength - 2), 8), readu8(input, inputLength - 1))
-		local v1, v2, v3 = rshift(c, 10), band(rshift(c, 4), 0x3F), band(lshift(c, 2), 0x3F)
+		buffer.writeu8(output, outputIndex,     buffer.readu8(lookupValueToCharacter, bit32.rshift(chunk, 18)))
+		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 12), 0x3F)))
 
-		writeu8(output, outPos,     readu8(lookupValueToCharacter, v1))
-		writeu8(output, outPos + 1, readu8(lookupValueToCharacter, v2))
-		writeu8(output, outPos + 2, readu8(lookupValueToCharacter, v3))
-		writeu8(output, outPos + 3, padding)
-
-	else -- remainder == 0
-		local c = bor(
-			lshift(readu8(input, inputLength - 3), 16),
-			lshift(readu8(input, inputLength - 2), 8),
-			readu8(input, inputLength - 1)
-		)
-
-		local v1, v2, v3, v4 = rshift(c, 18), band(rshift(c, 12), 0x3F), band(rshift(c, 6), 0x3F), band(c, 0x3F)
-
-		writeu8(output, outPos,     readu8(lookupValueToCharacter, v1))
-		writeu8(output, outPos + 1, readu8(lookupValueToCharacter, v2))
-		writeu8(output, outPos + 2, readu8(lookupValueToCharacter, v3))
-		writeu8(output, outPos + 3, readu8(lookupValueToCharacter, v4))
+		if remainder == 2 then
+			buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 6), 0x3F)))
+		else
+			buffer.writeu8(output, outputIndex + 2, padding)
+		end
+		buffer.writeu8(output, outputIndex + 3, padding)
 	end
 
 	return output
 end
 
 local function decode(input: buffer): buffer
-	local inputLength = buflen(input)
-	if inputLength == 0 then
-		return buffer.create(0)
-	end
+	local inputLength = buffer.len(input)
+	if inputLength == 0 then return buffer.create(0) end
 
-	local inputChunks = math.ceil(inputLength / 4)
-	local inputPadding = 0
-	if readu8(input, inputLength - 1) == padding then inputPadding += 1 end
-	if readu8(input, inputLength - 2) == padding then inputPadding += 1 end
+	local paddingCount = 0
+	if inputLength >= 1 and buffer.readu8(input, inputLength - 1) == padding then paddingCount += 1 end
+	if inputLength >= 2 and buffer.readu8(input, inputLength - 2) == padding then paddingCount += 1 end
 
-	local outputLength = inputChunks * 3 - inputPadding
+	local inputChunks = math.floor(inputLength / 4)
+	local outputLength = inputChunks * 3 - paddingCount
 	local output = buffer.create(outputLength)
 
-	for chunkIndex = 1, inputChunks - 1 do
-		local inPos, outPos = (chunkIndex - 1) * 4, (chunkIndex - 1) * 3
-		local v1 = readu8(lookupCharacterToValue, readu8(input, inPos))
-		local v2 = readu8(lookupCharacterToValue, readu8(input, inPos + 1))
-		local v3 = readu8(lookupCharacterToValue, readu8(input, inPos + 2))
-		local v4 = readu8(lookupCharacterToValue, readu8(input, inPos + 3))
+	for i = 0, inputChunks - 2 do
+		local inputIndex = i * 4
+		local outputIndex = i * 3
 
-		local chunk = bor(lshift(v1, 18), lshift(v2, 12), lshift(v3, 6), v4)
+		local v1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex))
+		local v2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 1))
+		local v3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 2))
+		local v4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 3))
 
-		writeu8(output, outPos,     rshift(chunk, 16))
-		writeu8(output, outPos + 1, band(rshift(chunk, 8), 0xFF))
-		writeu8(output, outPos + 2, band(chunk, 0xFF))
+		local chunk = bit32.bor(bit32.lshift(v1, 18), bit32.lshift(v2, 12), bit32.lshift(v3, 6), v4)
+
+		buffer.writeu8(output, outputIndex,     bit32.rshift(chunk, 16))
+		buffer.writeu8(output, outputIndex + 1, bit32.band(bit32.rshift(chunk, 8), 0xFF))
+		buffer.writeu8(output, outputIndex + 2, bit32.band(chunk, 0xFF))
 	end
 
-	local inPos, outPos = (inputChunks - 1) * 4, (inputChunks - 1) * 3
-	local v1 = readu8(lookupCharacterToValue, readu8(input, inPos))
-	local v2 = readu8(lookupCharacterToValue, readu8(input, inPos + 1))
-	local v3 = readu8(lookupCharacterToValue, readu8(input, inPos + 2))
-	local v4 = readu8(lookupCharacterToValue, readu8(input, inPos + 3))
+	local lastInputIndex = (inputChunks - 1) * 4
+	local lastOutputIndex = (inputChunks - 1) * 3
 
-	local chunk = bor(lshift(v1, 18), lshift(v2, 12), lshift(v3, 6), v4)
+	local v1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex))
+	local v2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 1))
+	local v3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 2))
+	local v4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 3))
 
-	if inputPadding <= 2 then
-		writeu8(output, outPos, rshift(chunk, 16))
-		if inputPadding <= 1 then
-			writeu8(output, outPos + 1, band(rshift(chunk, 8), 0xFF))
-			if inputPadding == 0 then
-				writeu8(output, outPos + 2, band(chunk, 0xFF))
+	local chunk = bit32.bor(bit32.lshift(v1, 18), bit32.lshift(v2, 12), bit32.lshift(v3, 6), v4)
+
+	if paddingCount <= 2 then
+		buffer.writeu8(output, lastOutputIndex, bit32.rshift(chunk, 16))
+		if paddingCount <= 1 then
+			buffer.writeu8(output, lastOutputIndex + 1, bit32.band(bit32.rshift(chunk, 8), 0xFF))
+			if paddingCount == 0 then
+				buffer.writeu8(output, lastOutputIndex + 2, bit32.band(chunk, 0xFF))
 			end
 		end
 	end
