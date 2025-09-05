@@ -259,9 +259,10 @@ local Luau = {
 		-- AUX: source register 3 in second least-significant byte
 		{ ["name"] = "FASTCALL3", ["type"] = "ABC", ["aux"] = true },
 
-		-- FORGPREP_NEXT: prepare FORGLOOP with 2 output variables (no AUX encoding), assuming generator is luaB_next, and jump to FORGLOOP
-		-- A: target register (see FORGLOOP for register layout)
-		{ ["name"] = "FORGPREP_NEXT", ["type"] = "A" },
+	    -- FORGPREP_NEXT: prepare FORGLOOP with 2 output variables (no AUX encoding), assuming generator is luaB_next, and jump to FORGLOOP
+	    -- A: target register (see FORGLOOP for register layout)
+	    -- D: jump offset (-32768..32767)
+		{ ["name"] = "FORGPREP_NEXT", ["type"] = "AsD" },
 
 		-- NATIVECALL: start executing new function in native code
 		-- this is a pseudo-instruction that is never emitted by bytecode compiler, but can be constructed at runtime to accelerate native code dispatch

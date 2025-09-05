@@ -1600,8 +1600,8 @@ local function Decompile(bytecode)
 							
 							result ..= "for ".. variablesBody .." in ipairs(".. formatRegister(targetRegister) ..") do"
 						elseif opCodeName == "FORGPREP_NEXT" then
-							local targetRegister = usedRegisters[1] + 1
-
+							local targetRegister = usedRegisters[1]
+							
 							local variablesBody = formatRegister(targetRegister + 2) ..", ".. formatRegister(targetRegister + 3)
 
 							result ..= "for ".. variablesBody .." in pairs(".. formatRegister(targetRegister) ..") do -- could be doing next, t"
