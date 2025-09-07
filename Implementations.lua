@@ -11,7 +11,7 @@ local type = type
 local rawget = rawget
 local math_max = math.max
 
--- Convert number to boolean (0 = false, others = true)
+-- from number to boolean
 local function toBoolean(n)
   return n ~= 0
 end
@@ -32,7 +32,7 @@ local function toEscapedString(s)
   return tostring(s)
 end
 
--- Format index access for Lua code (dot or bracket notation)
+-- picks indexing method based on characters in a string
 local function formatIndexString(s)
   if type(s) == "string" then
     if string_match(s, "^[%a_][%w_]*$") then
@@ -57,7 +57,7 @@ local function padRight(text, paddingChar, targetLen)
   return str .. string_rep(paddingChar, pad)
 end
 
--- Check if string is a global in current _ENV
+-- returns true if passed string is a key pointing to a Roblox global
 local function isGlobal(s)
   return rawget(_ENV, s) ~= nil
 end
