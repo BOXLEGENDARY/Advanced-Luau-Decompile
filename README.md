@@ -20,5 +20,6 @@ Contact: `@xsxs_xsxs_z`
 
 ## Credits
 
-- `W.A.E ( Creator )`
-- `break-core ( Base64 )`
+[w.a.e](https://github.com/w-a-e) ( Creator )
+
+[break-core](https://github.com/break-core) ( Base64 )
