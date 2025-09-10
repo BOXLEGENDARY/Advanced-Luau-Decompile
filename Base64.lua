@@ -7,52 +7,82 @@ local lookupCharacterToValue = buffer.create(256)
 local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 local padding = string.byte("=")
 
-for i = 1, #alphabet do
-	local value = i - 1
-	local char = string.byte(alphabet, i)
-	buffer.writeu8(lookupValueToCharacter, value, char)
-	buffer.writeu8(lookupCharacterToValue, char, value)
+for index = 1, 64 do
+	local value = index - 1
+	local character = string.byte(alphabet, index)
+
+	buffer.writeu8(lookupValueToCharacter, value, character)
+	buffer.writeu8(lookupCharacterToValue, character, value)
 end
 
 local function encode(input: buffer): buffer
 	local inputLength = buffer.len(input)
-	if inputLength == 0 then return buffer.create(0) end
+	local inputChunks = math.ceil(inputLength / 3)
 
-	local inputChunks = math.floor(inputLength / 3)
-	local remainder = inputLength % 3
-	local outputLength = inputChunks * 4 + (remainder > 0 and 4 or 0)
+	local outputLength = inputChunks * 4
 	local output = buffer.create(outputLength)
 
-	for i = 0, inputChunks - 1 do
-		local inputIndex = i * 3
-		local outputIndex = i * 4
+	-- Since we use readu32 and chunks are 3 bytes large, we can't read the last chunk here
+	for chunkIndex = 1, inputChunks - 1 do
+		local inputIndex = (chunkIndex - 1) * 3
+		local outputIndex = (chunkIndex - 1) * 4
 
-		local b1, b2, b3 = buffer.readu8(input, inputIndex), buffer.readu8(input, inputIndex + 1), buffer.readu8(input, inputIndex + 2)
-		local chunk = bit32.bor(bit32.lshift(b1, 16), bit32.lshift(b2, 8), b3)
+		local chunk = bit32.byteswap(buffer.readu32(input, inputIndex))
 
-		buffer.writeu8(output, outputIndex,     buffer.readu8(lookupValueToCharacter, bit32.rshift(chunk, 18)))
-		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 12), 0x3F)))
-		buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 6), 0x3F)))
-		buffer.writeu8(output, outputIndex + 3, buffer.readu8(lookupValueToCharacter, bit32.band(chunk, 0x3F)))
+		-- 8 + 24 - (6 * index)
+		local value1 = bit32.rshift(chunk, 26)
+		local value2 = bit32.band(bit32.rshift(chunk, 20), 0b111111)
+		local value3 = bit32.band(bit32.rshift(chunk, 14), 0b111111)
+		local value4 = bit32.band(bit32.rshift(chunk, 8), 0b111111)
+
+		buffer.writeu8(output, outputIndex, buffer.readu8(lookupValueToCharacter, value1))
+		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, value2))
+		buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, value3))
+		buffer.writeu8(output, outputIndex + 3, buffer.readu8(lookupValueToCharacter, value4))
 	end
 
-	if remainder > 0 then
-		local lastIndex = inputChunks * 3
-		local b1 = buffer.readu8(input, lastIndex)
-		local b2 = remainder == 2 and buffer.readu8(input, lastIndex + 1) or 0
+	local inputRemainder = inputLength % 3
 
-		local chunk = bit32.bor(bit32.lshift(b1, 16), bit32.lshift(b2, 8))
-		local outputIndex = inputChunks * 4
+	if inputRemainder == 1 then
+		local chunk = buffer.readu8(input, inputLength - 1)
 
-		buffer.writeu8(output, outputIndex,     buffer.readu8(lookupValueToCharacter, bit32.rshift(chunk, 18)))
-		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 12), 0x3F)))
+		local value1 = bit32.rshift(chunk, 2)
+		local value2 = bit32.band(bit32.lshift(chunk, 4), 0b111111)
 
-		if remainder == 2 then
-			buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, bit32.band(bit32.rshift(chunk, 6), 0x3F)))
-		else
-			buffer.writeu8(output, outputIndex + 2, padding)
-		end
-		buffer.writeu8(output, outputIndex + 3, padding)
+		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
+		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
+		buffer.writeu8(output, outputLength - 2, padding)
+		buffer.writeu8(output, outputLength - 1, padding)
+	elseif inputRemainder == 2 then
+		local chunk = bit32.bor(
+			bit32.lshift(buffer.readu8(input, inputLength - 2), 8),
+			buffer.readu8(input, inputLength - 1)
+		)
+
+		local value1 = bit32.rshift(chunk, 10)
+		local value2 = bit32.band(bit32.rshift(chunk, 4), 0b111111)
+		local value3 = bit32.band(bit32.lshift(chunk, 2), 0b111111)
+
+		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
+		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
+		buffer.writeu8(output, outputLength - 2, buffer.readu8(lookupValueToCharacter, value3))
+		buffer.writeu8(output, outputLength - 1, padding)
+	elseif inputRemainder == 0 and inputLength ~= 0 then
+		local chunk = bit32.bor(
+			bit32.lshift(buffer.readu8(input, inputLength - 3), 16),
+			bit32.lshift(buffer.readu8(input, inputLength - 2), 8),
+			buffer.readu8(input, inputLength - 1)
+		)
+
+		local value1 = bit32.rshift(chunk, 18)
+		local value2 = bit32.band(bit32.rshift(chunk, 12), 0b111111)
+		local value3 = bit32.band(bit32.rshift(chunk, 6), 0b111111)
+		local value4 = bit32.band(chunk, 0b111111)
+
+		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
+		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
+		buffer.writeu8(output, outputLength - 2, buffer.readu8(lookupValueToCharacter, value3))
+		buffer.writeu8(output, outputLength - 1, buffer.readu8(lookupValueToCharacter, value4))
 	end
 
 	return output
@@ -60,48 +90,71 @@ end
 
 local function decode(input: buffer): buffer
 	local inputLength = buffer.len(input)
-	if inputLength == 0 then return buffer.create(0) end
+	local inputChunks = math.ceil(inputLength / 4)
 
-	local paddingCount = 0
-	if inputLength >= 1 and buffer.readu8(input, inputLength - 1) == padding then paddingCount += 1 end
-	if inputLength >= 2 and buffer.readu8(input, inputLength - 2) == padding then paddingCount += 1 end
-
-	local inputChunks = math.floor(inputLength / 4)
-	local outputLength = inputChunks * 3 - paddingCount
-	local output = buffer.create(outputLength)
-
-	for i = 0, inputChunks - 2 do
-		local inputIndex = i * 4
-		local outputIndex = i * 3
-
-		local v1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex))
-		local v2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 1))
-		local v3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 2))
-		local v4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 3))
-
-		local chunk = bit32.bor(bit32.lshift(v1, 18), bit32.lshift(v2, 12), bit32.lshift(v3, 6), v4)
-
-		buffer.writeu8(output, outputIndex,     bit32.rshift(chunk, 16))
-		buffer.writeu8(output, outputIndex + 1, bit32.band(bit32.rshift(chunk, 8), 0xFF))
-		buffer.writeu8(output, outputIndex + 2, bit32.band(chunk, 0xFF))
+	-- TODO: Support input without padding
+	local inputPadding = 0
+	if inputLength ~= 0 then
+		if buffer.readu8(input, inputLength - 1) == padding then inputPadding += 1 end
+		if buffer.readu8(input, inputLength - 2) == padding then inputPadding += 1 end
 	end
 
-	local lastInputIndex = (inputChunks - 1) * 4
-	local lastOutputIndex = (inputChunks - 1) * 3
+	local outputLength = inputChunks * 3 - inputPadding
+	local output = buffer.create(outputLength)
 
-	local v1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex))
-	local v2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 1))
-	local v3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 2))
-	local v4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 3))
+	for chunkIndex = 1, inputChunks - 1 do
+		local inputIndex = (chunkIndex - 1) * 4
+		local outputIndex = (chunkIndex - 1) * 3
 
-	local chunk = bit32.bor(bit32.lshift(v1, 18), bit32.lshift(v2, 12), bit32.lshift(v3, 6), v4)
+		local value1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex))
+		local value2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 1))
+		local value3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 2))
+		local value4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 3))
 
-	if paddingCount <= 2 then
-		buffer.writeu8(output, lastOutputIndex, bit32.rshift(chunk, 16))
-		if paddingCount <= 1 then
-			buffer.writeu8(output, lastOutputIndex + 1, bit32.band(bit32.rshift(chunk, 8), 0xFF))
-			if paddingCount == 0 then
-				buffer.writeu8(output, lastOutputIndex + 2, bit32.band(chunk, 0xFF))
+		local chunk = bit32.bor(
+			bit32.lshift(value1, 18),
+			bit32.lshift(value2, 12),
+			bit32.lshift(value3, 6),
+			value4
+		)
+
+		local character1 = bit32.rshift(chunk, 16)
+		local character2 = bit32.band(bit32.rshift(chunk, 8), 0b11111111)
+		local character3 = bit32.band(chunk, 0b11111111)
+
+		buffer.writeu8(output, outputIndex, character1)
+		buffer.writeu8(output, outputIndex + 1, character2)
+		buffer.writeu8(output, outputIndex + 2, character3)
+	end
+
+	if inputLength ~= 0 then
+		local lastInputIndex = (inputChunks - 1) * 4
+		local lastOutputIndex = (inputChunks - 1) * 3
+
+		local lastValue1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex))
+		local lastValue2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 1))
+		local lastValue3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 2))
+		local lastValue4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 3))
+
+		local lastChunk = bit32.bor(
+			bit32.lshift(lastValue1, 18),
+			bit32.lshift(lastValue2, 12),
+			bit32.lshift(lastValue3, 6),
+			lastValue4
+		)
+
+		if inputPadding <= 2 then
+			local lastCharacter1 = bit32.rshift(lastChunk, 16)
+			buffer.writeu8(output, lastOutputIndex, lastCharacter1)
+
+			if inputPadding <= 1 then
+				local lastCharacter2 = bit32.band(bit32.rshift(lastChunk, 8), 0b11111111)
+				buffer.writeu8(output, lastOutputIndex + 1, lastCharacter2)
+
+				if inputPadding == 0 then
+					local lastCharacter3 = bit32.band(lastChunk, 0b11111111)
+					buffer.writeu8(output, lastOutputIndex + 2, lastCharacter3)
+				end
 			end
 		end
 	end
