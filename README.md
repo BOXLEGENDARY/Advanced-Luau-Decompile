@@ -11,15 +11,15 @@ by: `ZxL`
 
 ---
 
-## Discord
-
-if u want help or report bug
-Contact: `@xsxs_xsxs_z`
-
----
-
 ## Credits
 
 [w.a.e](https://github.com/w-a-e) ( Creator )
 
 [break-core](https://github.com/break-core) ( Base64 )
+
+---
+
+## Discord
+
+if u want help or report bug
+Contact: `@xsxs_xsxs_z`
