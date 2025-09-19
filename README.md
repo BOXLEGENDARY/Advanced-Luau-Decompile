@@ -1,4 +1,4 @@
-# Luau Decompline
+# Luau Decompile
 **Release — 06/16/2025**  
 i just optimize a bit
 
