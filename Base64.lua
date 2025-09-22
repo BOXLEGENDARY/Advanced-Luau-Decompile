@@ -15,7 +15,6 @@ for index = 1, 64 do
 	buffer.writeu8(lookupCharacterToValue, character, value)
 end
 
--- cache functions
 local readu8, writeu8, readu32, create, len = buffer.readu8, buffer.writeu8, buffer.readu32, buffer.create, buffer.len
 local lshift, rshift, band, bor, byteswap = bit32.lshift, bit32.rshift, bit32.band, bit32.bor, bit32.byteswap
 
