@@ -54,7 +54,7 @@ local Luau = {
 		{ ["name"] = "GETUPVAL", ["type"] = "AB" },
 
 		-- SETUPVAL: store value into the upvalue table for the current function
-		-- A: source register
+		-- A: target register
 		-- B: upvalue index
 		{ ["name"] = "SETUPVAL", ["type"] = "AB" },
 
