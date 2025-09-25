@@ -1825,7 +1825,7 @@ local function Decompile(bytecode)
 			end
 			writeActions(registerActions[mainProtoId])
 
-			finalResult = processResult(result)
+			finalResult = processResult(result .. "\n")
 		else -- assume optdec - optimized decompiler
 			local result = ""
 			-- remove temporary registers and some optimization passes
