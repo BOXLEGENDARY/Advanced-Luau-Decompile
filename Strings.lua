@@ -1,6 +1,6 @@
 local BaseStrings = {
     " " .. os.date(),
-    " Decompiler By ZxL ( Advanced Luau Decompiler )",
+    "-- Decompiler By ZxL ( Advanced Luau Decompiler )",
 }
 
 local CombinedBaseString = table.concat(BaseStrings, "\n")
