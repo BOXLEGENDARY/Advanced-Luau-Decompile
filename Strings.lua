@@ -1,5 +1,5 @@
 local BaseStrings = {
- " Decompline By ZxL",
+ " Decompiler By ZxL ( Advanced Luau Decompiler )",
 }
 
 local Strings = {
