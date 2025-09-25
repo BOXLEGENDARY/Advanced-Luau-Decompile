@@ -35,7 +35,7 @@ else
 	LoadFromUrl = function(x)
 		local BASE_USER = "BOXLEGENDARY"
 		local BASE_BRANCH = "main"
-		local BASE_URL = "https://raw.githubusercontent.com/%s/LuauDecompile/%s/%s.lua"
+		local BASE_URL = "https://raw.githubusercontent.com/%s/Advanced-Luau-Decompiler/%s/%s.lua"
 
 		local loadSuccess, loadResult = pcall(function()
 			local formattedUrl = string.format(BASE_URL, BASE_USER, BASE_BRANCH, x)
