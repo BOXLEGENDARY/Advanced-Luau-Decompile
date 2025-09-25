@@ -1,4 +1,4 @@
-# Advanced Luau Decompile
+# Advanced Luau Decompiler
 **Release — 06/16/2025**  
 i just optimize a bit
 
