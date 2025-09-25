@@ -1081,11 +1081,11 @@ local function Decompile(bytecode)
 
 							result ..= formatRegister(targetRegister) .." = ".. formatUpvalue(captures[upvalueIndex])
 						elseif opCodeName == "SETUPVAL" then
-							local sourceRegister = usedRegisters[1]
+							local targetRegister = usedRegisters[1]
 
 							local upvalueIndex = extraData[1]
 
-							result ..= formatUpvalue(captures[upvalueIndex]) .. " = " .. formatRegister(sourceRegister)
+							result ..= formatUpvalue(captures[upvalueIndex]) .. " = " .. formatRegister(targetRegister)
 						elseif opCodeName == "CLOSEUPVALS" then
 							local targetRegister = usedRegisters[1]
 
