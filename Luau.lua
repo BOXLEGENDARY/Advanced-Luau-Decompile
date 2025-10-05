@@ -376,9 +376,11 @@ local Luau = {
 		-- Bytecode version; runtime supports [MIN, MAX]
 		LBC_VERSION_MIN = 3,
 		LBC_VERSION_MAX = 6,
+		LBC_VERSION_TARGET = 6,
 		-- Type encoding version
 		LBC_TYPE_VERSION_MIN = 1,
 		LBC_TYPE_VERSION_MAX = 3,
+		LBC_TYPE_VERSION_TARGET = 3,
 		-- Types of constant table entries
 		LBC_CONSTANT_NIL = 0,
 		LBC_CONSTANT_BOOLEAN = 1,
