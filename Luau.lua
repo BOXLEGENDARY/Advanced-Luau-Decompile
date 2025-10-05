@@ -373,7 +373,7 @@ local Luau = {
 	},
 	-- Bytecode tags, used internally for bytecode encoded as a string
 	BytecodeTag = {
-		-- Bytecode version; runtime supports [MIN, MAX]
+		-- Bytecode version; runtime supports [MIN, MAX], compiler emits TARGET by default but may emit a higher version when flags are enabled
 		LBC_VERSION_MIN = 3,
 		LBC_VERSION_MAX = 6,
 		LBC_VERSION_TARGET = 6,
