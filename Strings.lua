@@ -1,5 +1,5 @@
 local BaseStrings = {
-    " " .. os.date("%Y-%m-%d %H:%M:%S"),
+    os.date("%Y-%m-%d %H:%M:%S"),
     "-- Decompiler By Advanced Luau Decompiler",
 }
 
