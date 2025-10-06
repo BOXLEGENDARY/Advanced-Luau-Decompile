@@ -10,7 +10,7 @@ local Strings = {
     TIMEOUT                = "-- DECOMPILER TIMEOUT",
     COMPILATION_FAILURE    = "-- SCRIPT FAILED TO COMPILE, ERROR:\n%s",
     UNSUPPORTED_LBC_VERSION= "-- PASSED BYTECODE IS TOO OLD OR UNSUPPORTED",
-    USED_GLOBALS           = "-- USED GLOBALS: %s.\n\n",
+    USED_GLOBALS           = "-- USED GLOBALS: %s.\n",
     DECOMPILER_REMARK      = "-- DECOMPILER REMARK: %s\n"
 }
 

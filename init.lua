@@ -1813,7 +1813,7 @@ local function Decompile(bytecode)
 						end
 					end
 					local function writeFooter()
-						result ..= "\n"
+						result ..= "\n\n\n"
 					end
 
 					writeHeader()
